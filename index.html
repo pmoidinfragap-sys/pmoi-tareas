@@ -1034,16 +1034,10 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 })();
 </script>
 
-
-
-
-
-
-
 <script>
-// BUILD:20260525210847
+// BUILD:20260525211940
 (function(){
-  // 1. Desregistrar SWs viejos y limpiar caches → fuerza recarga con versión nueva
+  // Limpiar SWs viejos
   if('serviceWorker' in navigator){
     navigator.serviceWorker.getRegistrations().then(function(regs){
       regs.forEach(function(r){ r.unregister(); });
@@ -1054,8 +1048,7 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
       keys.forEach(function(k){ caches.delete(k); });
     });
   }
-
-  // 2. Install prompt
+  // Install prompt
   var _dp=null;
   window.addEventListener('beforeinstallprompt',function(e){
     e.preventDefault();_dp=e;
