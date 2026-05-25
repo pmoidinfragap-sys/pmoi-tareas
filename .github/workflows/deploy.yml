@@ -1,4 +1,4 @@
-name: Deploy PMOi Tareas
+yamlname: Deploy PMOi Tareas
 
 on:
   push:
@@ -11,24 +11,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Inyectar BUILD_VERSION en sw.js
         run: |
-          # Genera un timestamp único con cada push (YYYYMMDDHHMMSS)
           BUILD_VERSION=$(date -u +"%Y%m%d%H%M%S")
-          echo "BUILD_VERSION=$BUILD_VERSION"
-          # Reemplaza el placeholder en sw.js
           sed -i "s/__BUILD_VERSION__/$BUILD_VERSION/g" sw.js
-          echo "sw.js actualizado con BUILD=$BUILD_VERSION"
 
-      - name: Verificar archivos
+      - name: Commit sw.js actualizado
         run: |
-          echo "=== Archivos en el repo ==="
-          ls -la
-          echo "=== Primeras líneas de sw.js ==="
-          head -5 sw.js
-
-      # Cloudflare Pages toma los archivos directamente desde el repo.
-      # No se necesita un paso de deploy adicional si ya tienes configurado
-      # Cloudflare Pages con GitHub integration.
-      # El push a 'main' dispara el deploy automáticamente en Cloudflare.
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add sw.js
+          git diff --cached --quiet || git commit -m "chore: actualizar BUILD_VERSION en sw.js [skip ci]"
+          git push
