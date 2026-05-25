@@ -1,4 +1,4 @@
-yamlname: Deploy PMOi Tareas
+name: Deploy PMOi Tareas
 
 on:
   push:
