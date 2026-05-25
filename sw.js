@@ -2,7 +2,7 @@
 // Este archivo se actualiza automáticamente por GitHub Actions en cada push.
 // El BUILD_VERSION cambia con cada deploy → fuerza actualización en todos los clientes.
 
-const BUILD_VERSION = '__BUILD_VERSION__';
+const BUILD_VERSION = '20260525205101';
 const CACHE_NAME = 'pmoi-' + BUILD_VERSION;
 
 // ── INSTALL: cachear el index, activar inmediatamente ──
