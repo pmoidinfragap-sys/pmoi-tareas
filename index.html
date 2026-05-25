@@ -291,34 +291,76 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
   <div class="splash-diamond d3"></div>
   <div class="splash-content">
     <!-- Icono PMOi Tareas: misma familia visual, columnas kanban en lugar de gantt -->
-    <svg class="splash-star" width="140" height="140" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="256" cy="210" r="140" fill="none" stroke="white" stroke-opacity="0.2" stroke-width="2"/>
-      <path d="M 138 244 A 128 128 0 1 1 365 316" fill="none" stroke="#f47920" stroke-width="14" stroke-linecap="round"/>
-      <path d="M 365 316 A 128 128 0 0 1 138 244" fill="none" stroke="white" stroke-opacity="0.25" stroke-width="14" stroke-linecap="round"/>
-      <circle cx="130" cy="212" r="6" fill="#f47920"/>
-      <circle cx="170" cy="116" r="6" fill="#f47920"/>
-      <circle cx="256" cy="84"  r="6" fill="#f47920"/>
-      <circle cx="342" cy="116" r="6" fill="#f47920" fill-opacity="0.7"/>
-      <!-- 3 columnas kanban -->
-      <rect x="152" y="155" width="48" height="13" rx="3.5" fill="#f47920" fill-opacity="0.9"/>
-      <rect x="152" y="174" width="48" height="13" rx="3.5" fill="#f47920" fill-opacity="0.7"/>
-      <rect x="152" y="193" width="48" height="13" rx="3.5" fill="#f47920" fill-opacity="0.45"/>
-      <line x1="152" y1="150" x2="200" y2="150" stroke="#f47920" stroke-width="3" stroke-linecap="round"/>
-      <rect x="212" y="155" width="48" height="13" rx="3.5" fill="white" fill-opacity="0.9"/>
-      <rect x="212" y="174" width="48" height="13" rx="3.5" fill="#5b9bd5" fill-opacity="0.9"/>
-      <rect x="212" y="193" width="48" height="13" rx="3.5" fill="white" fill-opacity="0.2"/>
-      <line x1="212" y1="150" x2="260" y2="150" stroke="#5b9bd5" stroke-width="3" stroke-linecap="round"/>
-      <rect x="272" y="155" width="48" height="13" rx="3.5" fill="white" fill-opacity="0.25"/>
-      <rect x="272" y="174" width="48" height="13" rx="3.5" fill="white" fill-opacity="0.15"/>
-      <line x1="272" y1="150" x2="320" y2="150" stroke="white" stroke-opacity="0.4" stroke-width="3" stroke-linecap="round"/>
-      <!-- Sprint arc mini -->
-      <path d="M 220 250 A 36 36 0 0 1 292 250" fill="none" stroke="#f47920" stroke-width="5" stroke-linecap="round"/>
-      <path d="M 292 250 A 36 36 0 0 1 220 250" fill="none" stroke="white" stroke-opacity="0.2" stroke-width="5"/>
-      <circle cx="256" cy="220" r="4" fill="#f47920"/>
-      <text x="256" y="392" text-anchor="middle" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="62" font-weight="800" fill="white" letter-spacing="2">PMOi</text>
-      <line x1="140" y1="405" x2="372" y2="405" stroke="white" stroke-width="1" stroke-opacity="0.25"/>
-      <text x="256" y="432" text-anchor="middle" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="17" font-weight="500" fill="white" fill-opacity="0.65" letter-spacing="5">TAREAS</text>
-    </svg>
+    <svg class="splash-star" width="140" height="140" viewBox="0 0 522 522" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="rc">
+      <rect x="0" y="0" width="512" height="512" rx="100"/>
+    </clipPath>
+  <mask id="imagine-text-gaps-p6esyj" maskUnits="userSpaceOnUse"><rect x="0" y="0" width="522" height="522" fill="white"/><rect x="180.0434112548828" y="365.92578125" width="151.9132080078125" height="73.328125" fill="black" rx="2"/><rect x="216.4279327392578" y="439.6875" width="79.1441650390625" height="24.390625" fill="black" rx="2"/></mask></defs>
+
+  <rect x="0" y="0" width="512" height="512" rx="100" fill="#152848" style="fill:rgb(21, 40, 72);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <g clip-path="url(#rc)" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+
+    <!-- Tarjeta / clipboard fondo -->
+    <rect x="136" y="108" width="240" height="280" rx="18" fill="#1e3a63" stroke="white" stroke-opacity="0.08" stroke-width="1.2" style="fill:rgb(30, 58, 99);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- Clip superior -->
+    <rect x="218" y="96" width="76" height="28" rx="8" fill="#152848" stroke="#5b9bd5" stroke-opacity="0.5" stroke-width="1.5" style="fill:rgb(21, 40, 72);stroke:rgb(91, 155, 213);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <rect x="238" y="103" width="36" height="14" rx="4" fill="#5b9bd5" fill-opacity="0.25" style="fill:rgb(91, 155, 213);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- Línea guía sutil -->
+    <line x1="164" y1="158" x2="348" y2="158" stroke="white" stroke-opacity="0.07" stroke-width="1" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <line x1="164" y1="210" x2="348" y2="210" stroke="white" stroke-opacity="0.07" stroke-width="1" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <line x1="164" y1="262" x2="348" y2="262" stroke="white" stroke-opacity="0.07" stroke-width="1" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <line x1="164" y1="314" x2="348" y2="314" stroke="white" stroke-opacity="0.07" stroke-width="1" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- TAREA 1 — completada (naranja) -->
+    <rect x="157" y="166" width="198" height="28" rx="6" fill="#f47920" fill-opacity="0.12" style="fill:rgb(244, 121, 32);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <!-- Check circle relleno naranja -->
+    <circle cx="178" cy="180" r="11" fill="#f47920" style="fill:rgb(244, 121, 32);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <polyline points="172,180 177,185 186,174" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:2.2px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <!-- Barra de texto tachada -->
+    <rect x="198" y="177" width="120" height="6" rx="3" fill="white" fill-opacity="0.55" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <line x1="198" y1="180" x2="318" y2="180" stroke="white" stroke-opacity="0.35" stroke-width="1.2" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- TAREA 2 — completada (naranja) -->
+    <rect x="157" y="218" width="198" height="28" rx="6" fill="#f47920" fill-opacity="0.08" style="fill:rgb(244, 121, 32);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <circle cx="178" cy="232" r="11" fill="#f47920" style="fill:rgb(244, 121, 32);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <polyline points="172,232 177,237 186,226" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:2.2px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <rect x="198" y="229" width="90" height="6" rx="3" fill="white" fill-opacity="0.55" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <line x1="198" y1="232" x2="288" y2="232" stroke="white" stroke-opacity="0.35" stroke-width="1.2" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- TAREA 3 — en progreso (azul) -->
+    <rect x="157" y="270" width="198" height="28" rx="6" fill="#5b9bd5" fill-opacity="0.14" style="fill:rgb(91, 155, 213);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <!-- Check circle medio lleno -->
+    <circle cx="178" cy="284" r="11" fill="none" stroke="#5b9bd5" stroke-width="2" style="fill:none;stroke:rgb(91, 155, 213);color:rgb(0, 0, 0);stroke-width:2px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <!-- Medio check -->
+    <path d="M172,284 A6,6 0 0 1 184,284" fill="#5b9bd5" fill-opacity="0.5" style="fill:rgb(91, 155, 213);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <rect x="198" y="281" width="105" height="6" rx="3" fill="white" fill-opacity="0.45" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- TAREA 4 — pendiente -->
+    <rect x="157" y="322" width="198" height="28" rx="6" fill="white" fill-opacity="0.03" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <circle cx="178" cy="336" r="11" fill="none" stroke="white" stroke-opacity="0.2" stroke-width="1.5" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <rect x="198" y="333" width="80" height="6" rx="3" fill="white" fill-opacity="0.2" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- Barra de progreso inferior -->
+    <rect x="157" y="362" width="198" height="6" rx="3" fill="white" fill-opacity="0.08" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <rect x="157" y="362" width="132" height="6" rx="3" fill="#f47920" fill-opacity="0.85" style="fill:rgb(244, 121, 32);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <!-- Etiqueta % -->
+    <circle cx="289" cy="365" r="4" fill="#f47920" style="fill:rgb(244, 121, 32);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  </g>
+
+  <!-- Texto PMOi -->
+  <text x="256" y="424" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="52" font-weight="700" fill="white" letter-spacing="2" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Segoe UI&quot;, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-size:52px;font-weight:700;text-anchor:middle;dominant-baseline:auto">PMOi</text>
+
+  <!-- Separador -->
+  <line x1="128" y1="434" x2="384" y2="434" stroke="white" stroke-width="0.8" stroke-opacity="0.18" mask="url(#imagine-text-gaps-p6esyj)" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Subtítulo -->
+  <text x="256" y="458" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="white" fill-opacity="0.5" letter-spacing="6" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Segoe UI&quot;, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-size:15px;font-weight:400;text-anchor:middle;dominant-baseline:auto">TASKS</text>
+</svg>
 
     <div class="splash-name">
       <div class="line1">Grupo</div>
@@ -345,19 +387,74 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
     <div class="header">
       <div class="header-row">
         <div class="logo">
-          <svg width="34" height="34" viewBox="0 0 512 512" style="flex-shrink:0">
-            <path d="M 138 244 A 128 128 0 1 1 365 316" fill="none" stroke="#f47920" stroke-width="14" stroke-linecap="round"/>
-            <path d="M 365 316 A 128 128 0 0 1 138 244" fill="none" stroke="#152848" stroke-opacity="0.3" stroke-width="14" stroke-linecap="round"/>
-            <circle cx="130" cy="212" r="6" fill="#f47920"/>
-            <circle cx="256" cy="84"  r="6" fill="#f47920"/>
-            <rect x="152" y="155" width="46" height="12" rx="3" fill="#f47920" fill-opacity="0.9"/>
-            <rect x="210" y="155" width="46" height="12" rx="3" fill="white" fill-opacity="0.8"/>
-            <rect x="268" y="155" width="46" height="12" rx="3" fill="white" fill-opacity="0.2"/>
-            <rect x="152" y="173" width="46" height="12" rx="3" fill="#f47920" fill-opacity="0.6"/>
-            <rect x="210" y="173" width="46" height="12" rx="3" fill="#5b9bd5" fill-opacity="0.8"/>
-            <text x="256" y="392" text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif" font-size="62" font-weight="800" fill="#152848" letter-spacing="2">PMOi</text>
-            <text x="256" y="432" text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif" font-size="17" font-weight="500" fill="#152848" fill-opacity="0.5" letter-spacing="5">TAREAS</text>
-          </svg>
+          <svg width="34" height="34" viewBox="0 0 522 522" style="flex-shrink:0">
+  <defs>
+    <clipPath id="rc">
+      <rect x="0" y="0" width="512" height="512" rx="100"/>
+    </clipPath>
+  <mask id="imagine-text-gaps-p6esyj" maskUnits="userSpaceOnUse"><rect x="0" y="0" width="522" height="522" fill="white"/><rect x="180.0434112548828" y="365.92578125" width="151.9132080078125" height="73.328125" fill="black" rx="2"/><rect x="216.4279327392578" y="439.6875" width="79.1441650390625" height="24.390625" fill="black" rx="2"/></mask></defs>
+
+  <g clip-path="url(#rc)" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+
+    <!-- Tarjeta / clipboard fondo -->
+    <rect x="136" y="108" width="240" height="280" rx="18" fill="#1e3a63" stroke="white" stroke-opacity="0.08" stroke-width="1.2" style="fill:rgb(30, 58, 99);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- Clip superior -->
+    <rect x="218" y="96" width="76" height="28" rx="8" fill="#152848" stroke="#5b9bd5" stroke-opacity="0.5" stroke-width="1.5" style="fill:rgb(21, 40, 72);stroke:rgb(91, 155, 213);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <rect x="238" y="103" width="36" height="14" rx="4" fill="#5b9bd5" fill-opacity="0.25" style="fill:rgb(91, 155, 213);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- Línea guía sutil -->
+    <line x1="164" y1="158" x2="348" y2="158" stroke="white" stroke-opacity="0.07" stroke-width="1" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <line x1="164" y1="210" x2="348" y2="210" stroke="white" stroke-opacity="0.07" stroke-width="1" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <line x1="164" y1="262" x2="348" y2="262" stroke="white" stroke-opacity="0.07" stroke-width="1" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <line x1="164" y1="314" x2="348" y2="314" stroke="white" stroke-opacity="0.07" stroke-width="1" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- TAREA 1 — completada (naranja) -->
+    <rect x="157" y="166" width="198" height="28" rx="6" fill="#f47920" fill-opacity="0.12" style="fill:rgb(244, 121, 32);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <!-- Check circle relleno naranja -->
+    <circle cx="178" cy="180" r="11" fill="#f47920" style="fill:rgb(244, 121, 32);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <polyline points="172,180 177,185 186,174" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:2.2px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <!-- Barra de texto tachada -->
+    <rect x="198" y="177" width="120" height="6" rx="3" fill="white" fill-opacity="0.55" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <line x1="198" y1="180" x2="318" y2="180" stroke="white" stroke-opacity="0.35" stroke-width="1.2" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- TAREA 2 — completada (naranja) -->
+    <rect x="157" y="218" width="198" height="28" rx="6" fill="#f47920" fill-opacity="0.08" style="fill:rgb(244, 121, 32);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <circle cx="178" cy="232" r="11" fill="#f47920" style="fill:rgb(244, 121, 32);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <polyline points="172,232 177,237 186,226" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:2.2px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <rect x="198" y="229" width="90" height="6" rx="3" fill="white" fill-opacity="0.55" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <line x1="198" y1="232" x2="288" y2="232" stroke="white" stroke-opacity="0.35" stroke-width="1.2" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1.2px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- TAREA 3 — en progreso (azul) -->
+    <rect x="157" y="270" width="198" height="28" rx="6" fill="#5b9bd5" fill-opacity="0.14" style="fill:rgb(91, 155, 213);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <!-- Check circle medio lleno -->
+    <circle cx="178" cy="284" r="11" fill="none" stroke="#5b9bd5" stroke-width="2" style="fill:none;stroke:rgb(91, 155, 213);color:rgb(0, 0, 0);stroke-width:2px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <!-- Medio check -->
+    <path d="M172,284 A6,6 0 0 1 184,284" fill="#5b9bd5" fill-opacity="0.5" style="fill:rgb(91, 155, 213);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <rect x="198" y="281" width="105" height="6" rx="3" fill="white" fill-opacity="0.45" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- TAREA 4 — pendiente -->
+    <rect x="157" y="322" width="198" height="28" rx="6" fill="white" fill-opacity="0.03" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <circle cx="178" cy="336" r="11" fill="none" stroke="white" stroke-opacity="0.2" stroke-width="1.5" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:1.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <rect x="198" y="333" width="80" height="6" rx="3" fill="white" fill-opacity="0.2" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+    <!-- Barra de progreso inferior -->
+    <rect x="157" y="362" width="198" height="6" rx="3" fill="white" fill-opacity="0.08" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <rect x="157" y="362" width="132" height="6" rx="3" fill="#f47920" fill-opacity="0.85" style="fill:rgb(244, 121, 32);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <!-- Etiqueta % -->
+    <circle cx="289" cy="365" r="4" fill="#f47920" style="fill:rgb(244, 121, 32);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  </g>
+
+  <!-- Texto PMOi -->
+  <text x="256" y="424" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="52" font-weight="700" fill="white" letter-spacing="2" style="fill:rgb(3, 43, 67);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Segoe UI&quot;, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-size:52px;font-weight:700;text-anchor:middle;dominant-baseline:auto">PMOi</text>
+
+  <!-- Separador -->
+  <line x1="128" y1="434" x2="384" y2="434" stroke="white" stroke-width="0.8" stroke-opacity="0.18" mask="url(#imagine-text-gaps-p6esyj)" style="fill:rgb(0, 0, 0);stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+  <!-- Subtítulo -->
+  <text x="256" y="458" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="white" fill-opacity="0.5" letter-spacing="6" style="fill:rgb(3, 43, 67);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Segoe UI&quot;, &quot;Helvetica Neue&quot;, Arial, sans-serif;font-size:15px;font-weight:400;text-anchor:middle;dominant-baseline:auto">TASKS</text>
+</svg>
           <div>
             <div class="logo-text">PMOi | Tareas del Equipo</div>
             <div class="logo-sub">DINFRA PMD 2025–2029</div>
@@ -365,6 +462,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
           <span class="sync-badge sync-ok" id="sync-badge">✓ Sync</span>
         </div>
         <div class="header-right">
+          <button id="btn-install-pwa" onclick="installPWA()" title="Instalar app" style="display:none;align-items:center;gap:5px;background:rgba(255,255,255,.13);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 10px;font-size:11px;font-weight:600;cursor:pointer;letter-spacing:.3px;" onmouseenter="this.style.background='rgba(255,255,255,.22)'" onmouseleave="this.style.background='rgba(255,255,255,.13)'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>
+            Instalar
+          </button>
           <button class="btn-new" id="btn-new-task">＋ Nueva</button>
           <button class="btn-logout" id="btn-logout">Salir</button>
         </div>
@@ -851,6 +952,47 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
     initFB();
   }
 })();
+</script>
+
+<script>
+// ── SERVICE WORKER (PWA install) ──
+if('serviceWorker' in navigator){
+  const swCode = `
+const CACHE='pmoi-tasks-v1';
+const ASSETS=['/'];
+self.addEventListener('install',e=>{
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
+});
+self.addEventListener('activate',e=>{
+  e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
+});
+self.addEventListener('fetch',e=>{
+  if(e.request.method!=='GET')return;
+  e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
+});`;
+  const blob=new Blob([swCode],{type:'text/javascript'});
+  const swUrl=URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl,{scope:'./'}).catch(()=>{});
+}
+
+// ── INSTALL PROMPT ──
+let _deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  _deferredPrompt=e;
+  const btn=document.getElementById('btn-install-pwa');
+  if(btn)btn.style.display='flex';
+});
+window.addEventListener('appinstalled',()=>{
+  _deferredPrompt=null;
+  const btn=document.getElementById('btn-install-pwa');
+  if(btn)btn.style.display='none';
+});
+function installPWA(){
+  if(!_deferredPrompt)return;
+  _deferredPrompt.prompt();
+  _deferredPrompt.userChoice.then(()=>{_deferredPrompt=null;});
+}
 </script>
 </body>
 </html>
