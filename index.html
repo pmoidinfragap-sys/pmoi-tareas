@@ -279,20 +279,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 .btn-activate{padding:5px 11px;background:var(--navy);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;}
 .kanban-board::-webkit-scrollbar{height:4px;}
 .kanban-board::-webkit-scrollbar-thumb{background:var(--gray-mid);border-radius:3px;}
-/* ── CONFIG MODAL ── */
-.config-section{margin-bottom:20px;}
-.config-section-title{font-size:11px;font-weight:700;color:var(--gray);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--gray-light);}
-.config-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;max-height:180px;overflow-y:auto;}
-.config-item{display:flex;align-items:center;gap:8px;background:var(--gray-pale);border-radius:8px;padding:7px 10px;}
-.config-item-text{flex:1;font-size:13px;color:var(--text);font-weight:500;}
-.config-item-del{background:none;border:none;color:var(--gray);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px;border-radius:4px;transition:color .15s,background .15s;}
-.config-item-del:hover{color:var(--red);background:rgba(231,76,60,.1);}
-.config-add-row{display:flex;gap:8px;}
-.config-add-row .form-input{flex:1;}
-.btn-config{background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:7px 10px;font-size:11px;font-weight:600;cursor:pointer;transition:background .2s;}
-.btn-config:hover{background:rgba(255,255,255,.2);}
-.config-empty{font-size:12px;color:var(--gray);text-align:center;padding:10px;font-style:italic;}
-
 .hidden{display:none!important;}
 </style>
 
@@ -436,7 +422,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>
             Instalar
           </button>
-          <button class="btn-config" id="btn-config" title="Configurar listas">⚙ Listas</button>
           <button class="btn-new" id="btn-new-task">＋ Nueva</button>
           <button class="btn-logout" id="btn-logout">Salir</button>
         </div>
@@ -483,43 +468,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
   </div>
 </div>
 
-
-<!-- MODAL CONFIGURACIÓN -->
-<div class="modal-overlay" id="modal-config">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-header">
-      <span class="modal-title">⚙ Configurar Listas</span>
-      <button class="modal-close" id="close-modal-config">✕</button>
-    </div>
-    <div class="modal-body">
-
-      <!-- RESPONSABLES -->
-      <div class="config-section">
-        <div class="config-section-title">👤 Responsables del equipo</div>
-        <div class="config-list" id="cfg-assignee-list"></div>
-        <div class="config-add-row">
-          <input class="form-input" id="cfg-assignee-input" placeholder="Nombre completo..." maxlength="60">
-          <button class="btn-save" id="cfg-assignee-add" style="white-space:nowrap">＋ Agregar</button>
-        </div>
-      </div>
-
-      <!-- ETIQUETAS -->
-      <div class="config-section">
-        <div class="config-section-title">🏷 Etiquetas de proyecto</div>
-        <div class="config-list" id="cfg-tag-list"></div>
-        <div class="config-add-row">
-          <input class="form-input" id="cfg-tag-input" placeholder="Ej: Contratos, Infra, Civil..." maxlength="40">
-          <button class="btn-save" id="cfg-tag-add" style="white-space:nowrap">＋ Agregar</button>
-        </div>
-      </div>
-
-    </div>
-    <div class="modal-footer">
-      <button class="btn-cancel" id="cfg-close">Cerrar</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL TAREA -->
 <div class="modal-overlay" id="modal-form">
   <div class="modal">
@@ -533,9 +481,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="form-group full"><label class="form-label">Descripcion</label><textarea class="form-textarea" id="f-desc" placeholder="Detalles, contexto, criterios de aceptacion..."></textarea></div>
         <div class="form-group"><label class="form-label">Estado</label><select class="form-select" id="f-status"><option value="backlog">Backlog</option><option value="todo">Por hacer</option><option value="progress">En progreso</option><option value="review">En revision</option><option value="done">Completado</option></select></div>
         <div class="form-group"><label class="form-label">Prioridad</label><select class="form-select" id="f-priority"><option value="Media">Media</option><option value="Alta">Alta</option><option value="Baja">Baja</option></select></div>
-        <div class="form-group"><label class="form-label">Responsable</label><select class="form-select" id="f-assignee"><option value="">— Sin asignar —</option></select></div>
+        <div class="form-group"><label class="form-label">Responsable</label><input class="form-input" id="f-assignee" placeholder="Nombre del responsable" list="assignee-list"><datalist id="assignee-list"></datalist></div>
         <div class="form-group"><label class="form-label">Fecha limite</label><input class="form-input" id="f-due" type="date"></div>
-        <div class="form-group"><label class="form-label">Etiqueta</label><select class="form-select" id="f-tag"><option value="">— Sin etiqueta —</option></select></div>
+        <div class="form-group"><label class="form-label">Etiqueta</label><input class="form-input" id="f-tag" placeholder="Diseno, Contratos, Infra..." list="tag-list"><datalist id="tag-list"></datalist></div>
         <div class="form-group"><label class="form-label">Sprint</label><select class="form-select" id="f-sprint"><option value="">Sin sprint</option></select></div>
       </div>
     </div>
@@ -624,7 +572,7 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, config={assignees:[],tags:[]}, curView='kanban', editId=null, detailId=null;
+let db=null, tasks={}, sprints={}, curView='kanban', editId=null, detailId=null;
 
 // ── AUTH ──
 function doLogin(){
@@ -649,7 +597,6 @@ async function initFB(){
     badge('ok','Conectado');
     db.ref('tasks').on('value',s=>{tasks=s.val()||{};rebuildFilters();refresh();badge('ok','Sync');});
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();refresh();});
-    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[]};rebuildConfigSelects();});
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
@@ -668,28 +615,10 @@ function activeSp(){return Object.values(sprints).find(s=>s.active)||null;}
 function rebuildFilters(){
   const fA=document.getElementById('filter-assignee');if(!fA)return;
   const cur=fA.value;
-  const names=[...new Set([...config.assignees,...Object.values(tasks).map(t=>t.assignee).filter(Boolean)])].sort();
+  const names=[...new Set(Object.values(tasks).map(t=>t.assignee).filter(Boolean))].sort();
   fA.innerHTML='<option value="">Todos los responsables</option>'+names.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('');
-}
-function rebuildConfigSelects(){
-  // f-assignee select
-  const fA=document.getElementById('f-assignee');
-  if(fA){const cv=fA.value;fA.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${esc(n)}</option>`).join('');}
-  // f-tag select
-  const fT=document.getElementById('f-tag');
-  if(fT){const cv=fT.value;fT.innerHTML='<option value="">— Sin etiqueta —</option>'+config.tags.map(t=>`<option value="${esc(t)}"${t===cv?' selected':''}>${esc(t)}</option>`).join('');}
-  // filter-assignee también
-  rebuildFilters();
-  // Renderizar modal config si está abierto
-  renderConfigModal();
-}
-function renderConfigModal(){
-  // Responsables
-  const al=document.getElementById('cfg-assignee-list');
-  if(al){al.innerHTML=config.assignees.length?config.assignees.map((n,i)=>`<div class="config-item"><span class="config-item-text">${esc(n)}</span><button class="config-item-del" onclick="delAssignee(${i})" title="Eliminar">✕</button></div>`).join(''):'<div class="config-empty">Sin responsables definidos</div>';}
-  // Etiquetas
-  const tl=document.getElementById('cfg-tag-list');
-  if(tl){tl.innerHTML=config.tags.length?config.tags.map((t,i)=>`<div class="config-item"><span class="config-item-text">${esc(t)}</span><button class="config-item-del" onclick="delTag(${i})" title="Eliminar">✕</button></div>`).join(''):'<div class="config-empty">Sin etiquetas definidas</div>';}
+  const dl=document.getElementById('assignee-list');if(dl)dl.innerHTML=names.map(n=>`<option value="${esc(n)}">`).join('');
+  const tl=document.getElementById('tag-list');if(tl){const tags=[...new Set(Object.values(tasks).map(t=>t.tag).filter(Boolean))].sort();tl.innerHTML=tags.map(t=>`<option value="${esc(t)}">`).join('');}
 }
 function rebuildSprintSel(){
   const fsp=document.getElementById('filter-sprint');if(!fsp)return;
@@ -967,43 +896,6 @@ function renderSprintModal(){
     :'<div style="font-size:12px;color:var(--gray);padding:8px">Sin sprints creados</div>';
 }
 
-
-// ── CONFIG MODAL ──
-document.getElementById('btn-config').onclick=()=>{renderConfigModal();openModal('modal-config');};
-document.getElementById('close-modal-config').onclick=()=>closeModal('modal-config');
-document.getElementById('cfg-close').onclick=()=>closeModal('modal-config');
-document.getElementById('modal-config').onclick=e=>{if(e.target===e.currentTarget)closeModal('modal-config');};
-
-document.getElementById('cfg-assignee-add').onclick=addAssignee;
-document.getElementById('cfg-assignee-input').onkeydown=e=>{if(e.key==='Enter')addAssignee();};
-document.getElementById('cfg-tag-add').onclick=addTag;
-document.getElementById('cfg-tag-input').onkeydown=e=>{if(e.key==='Enter')addTag();};
-
-async function addAssignee(){
-  const inp=document.getElementById('cfg-assignee-input');
-  const v=inp.value.trim();if(!v)return;
-  if(config.assignees.includes(v))return;
-  const arr=[...config.assignees,v].sort();
-  await fbSet('config/assignees',arr);
-  inp.value='';inp.focus();
-}
-async function delAssignee(i){
-  const arr=config.assignees.filter((_,idx)=>idx!==i);
-  await fbSet('config/assignees',arr);
-}
-async function addTag(){
-  const inp=document.getElementById('cfg-tag-input');
-  const v=inp.value.trim();if(!v)return;
-  if(config.tags.includes(v))return;
-  const arr=[...config.tags,v].sort();
-  await fbSet('config/tags',arr);
-  inp.value='';inp.focus();
-}
-async function delTag(i){
-  const arr=config.tags.filter((_,idx)=>idx!==i);
-  await fbSet('config/tags',arr);
-}
-
 // ── MODAL UTILS ──
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
@@ -1018,64 +910,44 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 })();
 </script>
 
-<script>
-// ── SERVICE WORKER (PWA install) ──
-if('serviceWorker' in navigator){
-  const swCode = `
-const CACHE='pmoi-tasks-v1';
-const ASSETS=['/'];
-self.addEventListener('install',e=>{
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
-});
-self.addEventListener('activate',e=>{
-  e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
-});
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
-});`;
-  const blob=new Blob([swCode],{type:'text/javascript'});
-  const swUrl=URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl,{scope:'./'}).catch(()=>{});
-}
 
-// ── INSTALL PROMPT ──
-let _deferredPrompt=null;
-window.addEventListener('beforeinstallprompt',e=>{
-  e.preventDefault();
-  _deferredPrompt=e;
-  const btn=document.getElementById('btn-install-pwa');
-  if(btn)btn.style.display='flex';
-});
-window.addEventListener('appinstalled',()=>{
-  _deferredPrompt=null;
-  const btn=document.getElementById('btn-install-pwa');
-  if(btn)btn.style.display='none';
-});
-function installPWA(){
-  if(!_deferredPrompt)return;
-  _deferredPrompt.prompt();
-  _deferredPrompt.userChoice.then(()=>{_deferredPrompt=null;});
-}
-</script>
 
 <script>
-// ── PWA: Manifest con PNG + Service Worker + Install button ──
-window.addEventListener('load', function() {
+// ── PWA: Service Worker + Manifest + Install Prompt ──
+(function(){
 
-  // Generar PNG 512x512 desde el SVG del favicon
-  var iconLink = document.querySelector('link[rel="icon"]');
-  if (iconLink) {
+  // 1. Registrar /sw.js (archivo real en el repo, no blob)
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('/sw.js').then(function(reg){
+      // Detectar nueva versión disponible
+      reg.addEventListener('updatefound', function(){
+        var nw = reg.installing;
+        nw.addEventListener('statechange', function(){
+          if(nw.state === 'installed' && navigator.serviceWorker.controller){
+            // Nueva versión lista → activar y recargar
+            nw.postMessage({type:'SKIP_WAITING'});
+          }
+        });
+      });
+      // Cuando el nuevo SW toma control → recargar para aplicar cambios
+      navigator.serviceWorker.addEventListener('controllerchange', function(){
+        window.location.reload();
+      });
+    }).catch(function(){});
+  }
+
+  // 2. Ícono PNG para el install dialog (mejor soporte que SVG)
+  window.addEventListener('load', function(){
+    var iconLink = document.querySelector('link[rel="icon"]');
+    if(!iconLink) return;
     var img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = function() {
-      try {
+    img.onload = function(){
+      try{
         var c = document.createElement('canvas');
         c.width = 512; c.height = 512;
-        var ctx = c.getContext('2d');
-        ctx.drawImage(img, 0, 0, 512, 512);
+        c.getContext('2d').drawImage(img, 0, 0, 512, 512);
         var png = c.toDataURL('image/png');
-
         var manifest = {
           name: "PMOi · Tareas INFRA",
           short_name: "PMOi Tareas",
@@ -1091,52 +963,36 @@ window.addEventListener('load', function() {
             {src: iconLink.href, sizes: "any", type: "image/svg+xml"}
           ]
         };
-        var blob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
-        var mUrl = URL.createObjectURL(blob);
+        var mBlob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
         var mLink = document.querySelector('link[rel="manifest"]');
-        if (mLink) mLink.href = mUrl;
-        else {
-          var l = document.createElement('link');
-          l.rel = 'manifest'; l.href = mUrl;
-          document.head.appendChild(l);
-        }
+        if(mLink) mLink.href = URL.createObjectURL(mBlob);
         var atl = document.querySelector('link[rel="apple-touch-icon"]');
-        if (atl) atl.href = png;
-      } catch(e) { console.warn('PWA icon error:', e); }
+        if(atl) atl.href = png;
+      }catch(e){}
     };
     img.src = iconLink.href;
-  }
+  });
 
-  // Service Worker
-  if ('serviceWorker' in navigator) {
-    var sw = [
-      "const CACHE='pmoi-v1';",
-      "self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()));});",
-      "self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});",
-      "self.addEventListener('fetch',e=>{if(e.request.method==='GET')e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});"
-    ].join('\n');
-    var swBlob = new Blob([sw], {type: 'text/javascript'});
-    navigator.serviceWorker.register(URL.createObjectURL(swBlob), {scope: './'}).catch(function(){});
-  }
-
-  // Install prompt
+  // 3. Install prompt (botón "Instalar")
   var _dp = null;
-  window.addEventListener('beforeinstallprompt', function(e) {
+  window.addEventListener('beforeinstallprompt', function(e){
     e.preventDefault(); _dp = e;
     var b = document.getElementById('btn-install-pwa');
-    if (b) b.style.display = 'flex';
+    if(b) b.style.display = 'flex';
   });
-  window.addEventListener('appinstalled', function() {
+  window.addEventListener('appinstalled', function(){
     _dp = null;
     var b = document.getElementById('btn-install-pwa');
-    if (b) b.style.display = 'none';
+    if(b) b.style.display = 'none';
   });
-  window.installPWA = function() {
-    if (!_dp) return;
+  window.installPWA = function(){
+    if(!_dp) return;
     _dp.prompt();
-    _dp.userChoice.then(function() { _dp = null; });
+    _dp.userChoice.then(function(){ _dp = null; });
   };
-});
+
+})();
 </script>
+
 </body>
 </html>
