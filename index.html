@@ -96,6 +96,20 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 .btn-new:hover{background:var(--orange-lt);}
 .btn-logout{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:7px 10px;font-size:11px;cursor:pointer;transition:background .2s;}
 .btn-logout:hover{background:rgba(255,255,255,.18);}
+/* ── CONFIG MODAL ── */
+.btn-config{background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:7px 11px;font-size:11px;font-weight:600;cursor:pointer;transition:background .2s;letter-spacing:.2px;}
+.btn-config:hover{background:rgba(255,255,255,.2);}
+.config-section{margin-bottom:22px;}
+.config-section-title{font-size:11px;font-weight:700;color:var(--gray);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--gray-light);display:flex;align-items:center;gap:6px;}
+.config-list{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;max-height:200px;overflow-y:auto;}
+.config-item{display:flex;align-items:center;gap:8px;background:var(--gray-pale);border-radius:8px;padding:8px 11px;}
+.config-item-text{flex:1;font-size:13px;color:var(--text);font-weight:500;}
+.config-item-del{background:none;border:none;color:var(--gray-mid);cursor:pointer;font-size:14px;line-height:1;padding:3px 5px;border-radius:4px;transition:color .15s,background .15s;}
+.config-item-del:hover{color:var(--red);background:rgba(231,76,60,.1);}
+.config-add-row{display:flex;gap:8px;}
+.config-add-row .form-input{flex:1;margin:0;}
+.config-empty{font-size:12px;color:var(--gray);text-align:center;padding:12px;font-style:italic;}
+
 .sync-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;}
 .sync-ok{background:rgba(0,184,148,.2);color:#00b894;}
 .sync-wait{background:rgba(251,133,0,.2);color:#FB8500;}
@@ -422,6 +436,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>
             Instalar
           </button>
+          <button class="btn-config" id="btn-config">⚙ Listas</button>
           <button class="btn-new" id="btn-new-task">＋ Nueva</button>
           <button class="btn-logout" id="btn-logout">Salir</button>
         </div>
@@ -468,6 +483,40 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
   </div>
 </div>
 
+<!-- MODAL CONFIGURACIÓN -->
+<div class="modal-overlay" id="modal-config">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <span class="modal-title">⚙ Configurar Listas</span>
+      <button class="modal-close" id="close-modal-config">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="config-section">
+        <div class="config-section-title">👤 Responsables del equipo</div>
+        <div class="config-list" id="cfg-assignee-list"></div>
+        <div class="config-add-row">
+          <input class="form-input" id="cfg-assignee-input" placeholder="Nombre completo..." maxlength="60">
+          <button class="btn-save" id="cfg-assignee-add">＋ Agregar</button>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <div class="config-section-title">🏷 Etiquetas de proyecto</div>
+        <div class="config-list" id="cfg-tag-list"></div>
+        <div class="config-add-row">
+          <input class="form-input" id="cfg-tag-input" placeholder="Ej: Contratos, Infra, Civil..." maxlength="40">
+          <button class="btn-save" id="cfg-tag-add">＋ Agregar</button>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="cfg-close">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL TAREA -->
 <div class="modal-overlay" id="modal-form">
   <div class="modal">
@@ -481,9 +530,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="form-group full"><label class="form-label">Descripcion</label><textarea class="form-textarea" id="f-desc" placeholder="Detalles, contexto, criterios de aceptacion..."></textarea></div>
         <div class="form-group"><label class="form-label">Estado</label><select class="form-select" id="f-status"><option value="backlog">Backlog</option><option value="todo">Por hacer</option><option value="progress">En progreso</option><option value="review">En revision</option><option value="done">Completado</option></select></div>
         <div class="form-group"><label class="form-label">Prioridad</label><select class="form-select" id="f-priority"><option value="Media">Media</option><option value="Alta">Alta</option><option value="Baja">Baja</option></select></div>
-        <div class="form-group"><label class="form-label">Responsable</label><input class="form-input" id="f-assignee" placeholder="Nombre del responsable" list="assignee-list"><datalist id="assignee-list"></datalist></div>
+        <div class="form-group"><label class="form-label">Responsable</label><select class="form-select" id="f-assignee"><option value="">— Sin asignar —</option></select></div>
         <div class="form-group"><label class="form-label">Fecha limite</label><input class="form-input" id="f-due" type="date"></div>
-        <div class="form-group"><label class="form-label">Etiqueta</label><input class="form-input" id="f-tag" placeholder="Diseno, Contratos, Infra..." list="tag-list"><datalist id="tag-list"></datalist></div>
+        <div class="form-group"><label class="form-label">Etiqueta</label><select class="form-select" id="f-tag"><option value="">— Sin etiqueta —</option></select></div>
         <div class="form-group"><label class="form-label">Sprint</label><select class="form-select" id="f-sprint"><option value="">Sin sprint</option></select></div>
       </div>
     </div>
@@ -572,7 +621,7 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, curView='kanban', editId=null, detailId=null;
+let db=null, tasks={}, sprints={}, config={assignees:[],tags:[]}, curView='kanban', editId=null, detailId=null;
 
 // ── AUTH ──
 function doLogin(){
@@ -597,6 +646,7 @@ async function initFB(){
     badge('ok','Conectado');
     db.ref('tasks').on('value',s=>{tasks=s.val()||{};rebuildFilters();refresh();badge('ok','Sync');});
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();refresh();});
+    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[]};rebuildConfigSelects();});
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
@@ -615,10 +665,31 @@ function activeSp(){return Object.values(sprints).find(s=>s.active)||null;}
 function rebuildFilters(){
   const fA=document.getElementById('filter-assignee');if(!fA)return;
   const cur=fA.value;
-  const names=[...new Set(Object.values(tasks).map(t=>t.assignee).filter(Boolean))].sort();
+  // Combina lista configurada + responsables ya usados en tareas
+  const names=[...new Set([...config.assignees,...Object.values(tasks).map(t=>t.assignee).filter(Boolean)])].sort();
   fA.innerHTML='<option value="">Todos los responsables</option>'+names.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('');
-  const dl=document.getElementById('assignee-list');if(dl)dl.innerHTML=names.map(n=>`<option value="${esc(n)}">`).join('');
-  const tl=document.getElementById('tag-list');if(tl){const tags=[...new Set(Object.values(tasks).map(t=>t.tag).filter(Boolean))].sort();tl.innerHTML=tags.map(t=>`<option value="${esc(t)}">`).join('');}
+}
+function rebuildConfigSelects(){
+  // Actualizar select de Responsable en el formulario de tarea
+  const fA=document.getElementById('f-assignee');
+  if(fA){const cv=fA.value;fA.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${esc(n)}</option>`).join('');}
+  // Actualizar select de Etiqueta en el formulario de tarea
+  const fT=document.getElementById('f-tag');
+  if(fT){const cv=fT.value;fT.innerHTML='<option value="">— Sin etiqueta —</option>'+config.tags.map(t=>`<option value="${esc(t)}"${t===cv?' selected':''}>${esc(t)}</option>`).join('');}
+  // Actualizar filtro de responsables
+  rebuildFilters();
+  // Refrescar modal de config si está abierto
+  renderConfigLists();
+}
+function renderConfigLists(){
+  const al=document.getElementById('cfg-assignee-list');
+  if(al){al.innerHTML=config.assignees.length
+    ?config.assignees.map((n,i)=>`<div class="config-item"><span class="config-item-text">${esc(n)}</span><button class="config-item-del" onclick="delAssignee(${i})">✕</button></div>`).join('')
+    :'<div class="config-empty">Sin responsables definidos aún</div>';}
+  const tl=document.getElementById('cfg-tag-list');
+  if(tl){tl.innerHTML=config.tags.length
+    ?config.tags.map((t,i)=>`<div class="config-item"><span class="config-item-text">${esc(t)}</span><button class="config-item-del" onclick="delTag(${i})">✕</button></div>`).join('')
+    :'<div class="config-empty">Sin etiquetas definidas aún</div>';}
 }
 function rebuildSprintSel(){
   const fsp=document.getElementById('filter-sprint');if(!fsp)return;
@@ -894,6 +965,39 @@ function renderSprintModal(){
   document.getElementById('sprint-list-modal').innerHTML=arr.length
     ?arr.map(s=>`<div class="sprint-list-item"><div><div class="sprint-list-name">${esc(s.name)}</div><div class="sprint-list-dates">${fmtD(s.start)} → ${fmtD(s.end)}</div></div><span class="s-badge ${s.active?'s-active':'s-closed'}">${s.active?'Activo':'Cerrado'}</span>${!s.active?`<button class="btn-activate" onclick="activateSprint('${s.id}')">Activar</button>`:''}</div>`).join('')
     :'<div style="font-size:12px;color:var(--gray);padding:8px">Sin sprints creados</div>';
+}
+
+// ── CONFIG LISTAS ──
+document.getElementById('btn-config').onclick=()=>{renderConfigLists();openModal('modal-config');};
+document.getElementById('close-modal-config').onclick=()=>closeModal('modal-config');
+document.getElementById('cfg-close').onclick=()=>closeModal('modal-config');
+document.getElementById('modal-config').onclick=e=>{if(e.target===e.currentTarget)closeModal('modal-config');};
+document.getElementById('cfg-assignee-add').onclick=addAssignee;
+document.getElementById('cfg-assignee-input').onkeydown=e=>{if(e.key==='Enter')addAssignee();};
+document.getElementById('cfg-tag-add').onclick=addTag;
+document.getElementById('cfg-tag-input').onkeydown=e=>{if(e.key==='Enter')addTag();};
+
+async function addAssignee(){
+  const inp=document.getElementById('cfg-assignee-input');
+  const v=inp.value.trim();if(!v)return;
+  if(config.assignees.includes(v)){inp.select();return;}
+  await fbSet('config/assignees',[...config.assignees,v].sort());
+  inp.value='';inp.focus();
+}
+async function delAssignee(i){
+  if(!confirm('¿Eliminar este responsable?'))return;
+  await fbSet('config/assignees',config.assignees.filter((_,idx)=>idx!==i));
+}
+async function addTag(){
+  const inp=document.getElementById('cfg-tag-input');
+  const v=inp.value.trim();if(!v)return;
+  if(config.tags.includes(v)){inp.select();return;}
+  await fbSet('config/tags',[...config.tags,v].sort());
+  inp.value='';inp.focus();
+}
+async function delTag(i){
+  if(!confirm('¿Eliminar esta etiqueta?'))return;
+  await fbSet('config/tags',config.tags.filter((_,idx)=>idx!==i));
 }
 
 // ── MODAL UTILS ──
