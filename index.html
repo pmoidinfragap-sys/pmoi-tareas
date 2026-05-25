@@ -96,20 +96,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 .btn-new:hover{background:var(--orange-lt);}
 .btn-logout{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:7px 10px;font-size:11px;cursor:pointer;transition:background .2s;}
 .btn-logout:hover{background:rgba(255,255,255,.18);}
-/* ── CONFIG MODAL ── */
-.btn-config{background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:7px 11px;font-size:11px;font-weight:600;cursor:pointer;transition:background .2s;letter-spacing:.2px;}
+.btn-config{background:rgba(255,255,255,.1);color:rgba(255,255,255,.82);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:7px 11px;font-size:11px;font-weight:600;cursor:pointer;transition:background .2s;letter-spacing:.2px;}
 .btn-config:hover{background:rgba(255,255,255,.2);}
 .config-section{margin-bottom:22px;}
-.config-section-title{font-size:11px;font-weight:700;color:var(--gray);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--gray-light);display:flex;align-items:center;gap:6px;}
+.config-section-title{font-size:11px;font-weight:700;color:var(--gray);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--gray-light);}
 .config-list{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;max-height:200px;overflow-y:auto;}
 .config-item{display:flex;align-items:center;gap:8px;background:var(--gray-pale);border-radius:8px;padding:8px 11px;}
 .config-item-text{flex:1;font-size:13px;color:var(--text);font-weight:500;}
-.config-item-del{background:none;border:none;color:var(--gray-mid);cursor:pointer;font-size:14px;line-height:1;padding:3px 5px;border-radius:4px;transition:color .15s,background .15s;}
+.config-item-del{background:none;border:none;color:var(--gray-mid);cursor:pointer;font-size:14px;line-height:1;padding:3px 6px;border-radius:4px;transition:color .15s,background .15s;}
 .config-item-del:hover{color:var(--red);background:rgba(231,76,60,.1);}
 .config-add-row{display:flex;gap:8px;}
 .config-add-row .form-input{flex:1;margin:0;}
 .config-empty{font-size:12px;color:var(--gray);text-align:center;padding:12px;font-style:italic;}
-
 .sync-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;}
 .sync-ok{background:rgba(0,184,148,.2);color:#00b894;}
 .sync-wait{background:rgba(251,133,0,.2);color:#FB8500;}
@@ -491,7 +489,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
       <button class="modal-close" id="close-modal-config">✕</button>
     </div>
     <div class="modal-body">
-
       <div class="config-section">
         <div class="config-section-title">👤 Responsables del equipo</div>
         <div class="config-list" id="cfg-assignee-list"></div>
@@ -500,7 +497,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
           <button class="btn-save" id="cfg-assignee-add">＋ Agregar</button>
         </div>
       </div>
-
       <div class="config-section">
         <div class="config-section-title">🏷 Etiquetas de proyecto</div>
         <div class="config-list" id="cfg-tag-list"></div>
@@ -509,7 +505,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
           <button class="btn-save" id="cfg-tag-add">＋ Agregar</button>
         </div>
       </div>
-
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" id="cfg-close">Cerrar</button>
@@ -645,8 +640,8 @@ async function initFB(){
     db=firebase.database();
     badge('ok','Conectado');
     db.ref('tasks').on('value',s=>{tasks=s.val()||{};rebuildFilters();refresh();badge('ok','Sync');});
-    db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();refresh();});
     db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[]};rebuildConfigSelects();});
+    db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();refresh();});
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
@@ -665,20 +660,15 @@ function activeSp(){return Object.values(sprints).find(s=>s.active)||null;}
 function rebuildFilters(){
   const fA=document.getElementById('filter-assignee');if(!fA)return;
   const cur=fA.value;
-  // Combina lista configurada + responsables ya usados en tareas
   const names=[...new Set([...config.assignees,...Object.values(tasks).map(t=>t.assignee).filter(Boolean)])].sort();
   fA.innerHTML='<option value="">Todos los responsables</option>'+names.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('');
 }
 function rebuildConfigSelects(){
-  // Actualizar select de Responsable en el formulario de tarea
   const fA=document.getElementById('f-assignee');
   if(fA){const cv=fA.value;fA.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${esc(n)}</option>`).join('');}
-  // Actualizar select de Etiqueta en el formulario de tarea
   const fT=document.getElementById('f-tag');
   if(fT){const cv=fT.value;fT.innerHTML='<option value="">— Sin etiqueta —</option>'+config.tags.map(t=>`<option value="${esc(t)}"${t===cv?' selected':''}>${esc(t)}</option>`).join('');}
-  // Actualizar filtro de responsables
   rebuildFilters();
-  // Refrescar modal de config si está abierto
   renderConfigLists();
 }
 function renderConfigLists(){
@@ -1018,81 +1008,113 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 <script>
 // ── PWA: Service Worker + Manifest + Install Prompt ──
+// BUILD 20260525210046 — cambia con cada index.html nuevo → fuerza update automático
 (function(){
 
-  // 1. Registrar /sw.js (archivo real en el repo, no blob)
+  // 1. SERVICE WORKER INLINE
+  // Al estar embebido en el HTML, cambia con cada deploy sin necesitar Actions.
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('/sw.js').then(function(reg){
-      // Detectar nueva versión disponible
-      reg.addEventListener('updatefound', function(){
-        var nw = reg.installing;
-        nw.addEventListener('statechange', function(){
-          if(nw.state === 'installed' && navigator.serviceWorker.controller){
-            // Nueva versión lista → activar y recargar
+    var swCode=[
+      "const BUILD='20260525210046';",
+      "const CACHE='pmoi-'+BUILD;",
+      "self.addEventListener('install',function(e){",
+      "  e.waitUntil(caches.open(CACHE).then(function(c){return c.add('./');})",
+      "  .then(function(){return self.skipWaiting();}));",
+      "});",
+      "self.addEventListener('activate',function(e){",
+      "  e.waitUntil(caches.keys().then(function(keys){",
+      "    return Promise.all(keys.filter(function(k){return k!==CACHE;}).map(function(k){return caches.delete(k);}));",
+      "  }).then(function(){return self.clients.claim();}));",
+      "});",
+      "self.addEventListener('fetch',function(e){",
+      "  if(e.request.method!=='GET')return;",
+      "  if(new URL(e.request.url).origin!==self.location.origin)return;",
+      "  e.respondWith(fetch(e.request).then(function(r){",
+      "    var c=r.clone();",
+      "    caches.open(CACHE).then(function(ca){ca.put(e.request,c);});",
+      "    return r;",
+      "  }).catch(function(){return caches.match(e.request);}));",
+      "});",
+      "self.addEventListener('message',function(e){",
+      "  if(e.data&&e.data.type==='SKIP_WAITING')self.skipWaiting();",
+      "});"
+    ].join('
+');
+
+    var blob=new Blob([swCode],{type:'text/javascript'});
+    var swUrl=URL.createObjectURL(blob);
+
+    navigator.serviceWorker.register(swUrl,{scope:'./'}).then(function(reg){
+      reg.addEventListener('updatefound',function(){
+        var nw=reg.installing;
+        nw.addEventListener('statechange',function(){
+          if(nw.state==='installed'&&navigator.serviceWorker.controller){
             nw.postMessage({type:'SKIP_WAITING'});
           }
         });
       });
-      // Cuando el nuevo SW toma control → recargar para aplicar cambios
-      navigator.serviceWorker.addEventListener('controllerchange', function(){
+      var refreshing=false;
+      navigator.serviceWorker.addEventListener('controllerchange',function(){
+        if(refreshing)return;
+        refreshing=true;
         window.location.reload();
       });
     }).catch(function(){});
   }
 
-  // 2. Ícono PNG para el install dialog (mejor soporte que SVG)
-  window.addEventListener('load', function(){
-    var iconLink = document.querySelector('link[rel="icon"]');
-    if(!iconLink) return;
-    var img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = function(){
+  // 2. ÍCONO PNG para el install dialog
+  window.addEventListener('load',function(){
+    var iconLink=document.querySelector('link[rel="icon"]');
+    if(!iconLink)return;
+    var img=new Image();
+    img.crossOrigin='anonymous';
+    img.onload=function(){
       try{
-        var c = document.createElement('canvas');
-        c.width = 512; c.height = 512;
-        c.getContext('2d').drawImage(img, 0, 0, 512, 512);
-        var png = c.toDataURL('image/png');
-        var manifest = {
-          name: "PMOi · Tareas INFRA",
-          short_name: "PMOi Tareas",
-          description: "Gestión de tareas PMOi INFRA - GAP",
-          start_url: "./",
-          display: "standalone",
-          background_color: "#152848",
-          theme_color: "#032B43",
-          orientation: "portrait-primary",
-          icons: [
-            {src: png, sizes: "512x512", type: "image/png", purpose: "any"},
-            {src: png, sizes: "512x512", type: "image/png", purpose: "maskable"},
-            {src: iconLink.href, sizes: "any", type: "image/svg+xml"}
+        var c=document.createElement('canvas');
+        c.width=512;c.height=512;
+        c.getContext('2d').drawImage(img,0,0,512,512);
+        var png=c.toDataURL('image/png');
+        var manifest={
+          name:"PMOi · Tareas INFRA",
+          short_name:"PMOi Tareas",
+          description:"Gestión de tareas PMOi INFRA - GAP",
+          start_url:"./",
+          display:"standalone",
+          background_color:"#152848",
+          theme_color:"#032B43",
+          orientation:"portrait-primary",
+          icons:[
+            {src:png,sizes:"512x512",type:"image/png",purpose:"any"},
+            {src:png,sizes:"512x512",type:"image/png",purpose:"maskable"},
+            {src:iconLink.href,sizes:"any",type:"image/svg+xml"}
           ]
         };
-        var mBlob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
-        var mLink = document.querySelector('link[rel="manifest"]');
-        if(mLink) mLink.href = URL.createObjectURL(mBlob);
-        var atl = document.querySelector('link[rel="apple-touch-icon"]');
-        if(atl) atl.href = png;
+        var mBlob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+        var mLink=document.querySelector('link[rel="manifest"]');
+        if(mLink)mLink.href=URL.createObjectURL(mBlob);
+        var atl=document.querySelector('link[rel="apple-touch-icon"]');
+        if(atl)atl.href=png;
       }catch(e){}
     };
-    img.src = iconLink.href;
+    img.src=iconLink.href;
   });
 
-  // 3. Install prompt (botón "Instalar")
-  var _dp = null;
-  window.addEventListener('beforeinstallprompt', function(e){
-    e.preventDefault(); _dp = e;
-    var b = document.getElementById('btn-install-pwa');
-    if(b) b.style.display = 'flex';
+  // 3. INSTALL PROMPT
+  var _dp=null;
+  window.addEventListener('beforeinstallprompt',function(e){
+    e.preventDefault();_dp=e;
+    var b=document.getElementById('btn-install-pwa');
+    if(b)b.style.display='flex';
   });
-  window.addEventListener('appinstalled', function(){
-    _dp = null;
-    var b = document.getElementById('btn-install-pwa');
-    if(b) b.style.display = 'none';
+  window.addEventListener('appinstalled',function(){
+    _dp=null;
+    var b=document.getElementById('btn-install-pwa');
+    if(b)b.style.display='none';
   });
-  window.installPWA = function(){
-    if(!_dp) return;
+  window.installPWA=function(){
+    if(!_dp)return;
     _dp.prompt();
-    _dp.userChoice.then(function(){ _dp = null; });
+    _dp.userChoice.then(function(){_dp=null;});
   };
 
 })();
