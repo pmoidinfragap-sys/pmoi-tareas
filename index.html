@@ -79,6 +79,7 @@
   --shadow-lg:0 6px 24px rgba(3,43,67,.13),0 2px 6px rgba(3,43,67,.06);
   --radius:12px;
   --col-backlog:#7a8a9e;--col-todo:#0a6ea0;--col-progress:#FB8500;--col-review:#6c5ce7;--col-done:#00b894;
+  --okr-on-track:#00b894;--okr-at-risk:#f1c40f;--okr-off-track:#e74c3c;--okr-done:#0a6ea0;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html{overflow-x:hidden;}
@@ -212,6 +213,73 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 .overdue{color:var(--red)!important;font-weight:600;}
 .soon{color:var(--orange)!important;font-weight:600;}
 .card-cmts{font-size:10px;color:var(--gray);display:flex;align-items:center;gap:2px;}
+
+/* OKR PAGE */
+.okr-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.okr-toolbar-left{display:flex;align-items:center;gap:10px;}
+.okr-quarter-sel{padding:6px 12px;border:1px solid var(--gray-light);border-radius:8px;font-size:12px;font-weight:600;color:var(--text);background:#fff;outline:none;}
+.btn-add-okr{background:var(--orange);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(251,133,0,.35);transition:background .2s;}
+.btn-add-okr:hover{background:var(--orange-lt);}
+.okr-list{display:flex;flex-direction:column;gap:16px;}
+.okr-card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--gray-light);overflow:hidden;}
+.okr-card-header{padding:14px 18px 12px;display:flex;align-items:flex-start;gap:12px;border-bottom:1px solid var(--gray-light);}
+.okr-status-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.okr-card-main{flex:1;min-width:0;}
+.okr-obj-title{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:4px;line-height:1.35;}
+.okr-obj-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.okr-meta-chip{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--gray-pale);color:var(--gray);border:1px solid var(--gray-light);}
+.okr-meta-chip.owner{background:rgba(10,110,160,.08);color:var(--navy-light);border-color:rgba(10,110,160,.15);}
+.okr-overall{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
+.okr-pct-big{font-size:22px;font-weight:800;color:var(--navy);}
+.okr-pct-label{font-size:10px;color:var(--gray);font-weight:600;letter-spacing:.3px;}
+.okr-card-actions{display:flex;gap:6px;margin-left:8px;flex-shrink:0;}
+.btn-okr-action{background:none;border:1px solid var(--gray-light);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--gray);cursor:pointer;transition:all .15s;}
+.btn-okr-action:hover{background:var(--gray-pale);color:var(--navy);}
+.okr-card-krs{padding:0 18px 14px;}
+.kr-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-pale);}
+.kr-row:last-child{border-bottom:none;}
+.kr-index{font-size:10px;font-weight:700;color:var(--gray);width:20px;flex-shrink:0;}
+.kr-main{flex:1;min-width:0;}
+.kr-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:5px;line-height:1.35;}
+.kr-bar-wrap{height:6px;background:var(--gray-light);border-radius:4px;overflow:hidden;margin-bottom:4px;}
+.kr-bar-fill{height:100%;border-radius:4px;transition:width .5s;}
+.kr-stats{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.kr-tasks-info{font-size:10px;color:var(--gray);}
+.kr-tasks-info span{font-weight:700;color:var(--navy);}
+.kr-pct-num{font-size:11px;font-weight:800;margin-left:auto;}
+.status-on-track{color:var(--okr-on-track);}
+.status-at-risk{color:var(--okr-at-risk);}
+.status-off-track{color:var(--okr-off-track);}
+.status-done{color:var(--okr-done);}
+.okr-empty{text-align:center;padding:48px 16px;color:var(--gray);}
+.okr-empty-icon{font-size:36px;margin-bottom:10px;}
+.okr-empty-txt{font-size:14px;font-weight:600;margin-bottom:6px;color:var(--navy);}
+.okr-empty-sub{font-size:12px;}
+/* OKR MODAL */
+.okr-modal-tabs{display:flex;gap:2px;background:var(--gray-pale);border-radius:8px;padding:3px;margin-bottom:16px;}
+.okr-tab{flex:1;padding:6px;border:none;background:transparent;border-radius:6px;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;transition:all .15s;}
+.okr-tab.active{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(3,43,67,.12);}
+.kr-form-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;max-height:260px;overflow-y:auto;}
+.kr-form-item{background:var(--gray-pale);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;}
+.kr-form-item-header{display:flex;align-items:center;gap:6px;}
+.kr-form-item-num{font-size:11px;font-weight:700;color:var(--gray-mid);}
+.kr-form-item-title{font-size:12px;font-weight:600;color:var(--text);flex:1;}
+.kr-form-item-del{background:none;border:none;color:var(--gray-mid);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:4px;transition:color .15s;}
+.kr-form-item-del:hover{color:var(--red);}
+.kr-add-row{display:flex;gap:8px;}
+.kr-add-row .form-input{flex:1;margin:0;}
+/* OKR DASHBOARD CARD */
+.okr-dash-card{background:#fff;border-radius:var(--radius);border:1px solid var(--gray-light);box-shadow:var(--shadow);padding:14px 16px;}
+.okr-dash-title{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--gray);margin-bottom:12px;}
+.okr-dash-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;padding:6px 8px;border-radius:8px;transition:background .15s;}
+.okr-dash-row:hover{background:var(--gray-pale);}
+.okr-dash-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.okr-dash-obj{font-size:12px;font-weight:600;color:var(--text);flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.okr-dash-bar{width:80px;height:6px;background:var(--gray-light);border-radius:4px;overflow:hidden;flex-shrink:0;}
+.okr-dash-bar-fill{height:100%;border-radius:4px;transition:width .5s;}
+.okr-dash-pct{font-size:11px;font-weight:700;width:30px;text-align:right;flex-shrink:0;}
+/* KR task link badge on task form */
+.kr-link-note{font-size:10px;color:var(--gray);font-style:italic;margin-top:2px;}
 .card-sprint-tag{font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(3,43,67,.08);color:var(--navy-mid);}
 
 /* LIST */
@@ -473,6 +541,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
     <div class="nav">
       <button class="nav-btn active" id="nav-dashboard">Dashboard</button>
       <button class="nav-btn" id="nav-board">Tablero</button>
+      <button class="nav-btn" id="nav-okr">🎯 OKRs</button>
     </div>
   </div>
 
@@ -487,6 +556,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
       <div class="dash-row">
         <div class="dash-card"><div class="section-title">Distribucion por estado</div><div id="dash-by-status"></div></div>
         <div class="dash-card"><div class="section-title">Historial de sprints</div><div id="dash-sprint-history"></div></div>
+      </div>
+      <div class="okr-dash-card" style="margin-bottom:12px">
+        <div class="okr-dash-title">🎯 Progreso de Objetivos (OKRs)</div>
+        <div id="dash-okr-list"></div>
       </div>
     </div>
 
@@ -507,6 +580,65 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
       </div>
       <div id="view-kanban"></div>
       <div id="view-list" class="hidden"></div>
+    </div>
+  </div>
+
+    <!-- OKR PAGE -->
+    <div id="page-okr" class="page">
+      <div class="main" style="padding-top:0">
+        <div class="okr-toolbar">
+          <div class="okr-toolbar-left">
+            <select class="okr-quarter-sel" id="okr-quarter-filter">
+              <option value="">Todos los trimestres</option>
+              <option value="Q1">Q1</option>
+              <option value="Q2">Q2</option>
+              <option value="Q3">Q3</option>
+              <option value="Q4">Q4</option>
+            </select>
+            <select class="okr-quarter-sel" id="okr-year-filter">
+              <option value="">Todos los años</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </div>
+          <button class="btn-add-okr" id="btn-new-okr">＋ Nuevo Objetivo</button>
+        </div>
+        <div id="okr-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL OKR -->
+<div class="modal-overlay" id="modal-okr">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-okr-title">Nuevo Objetivo</span>
+      <button class="modal-close" id="close-modal-okr">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label class="form-label">Objetivo *</label><input class="form-input" id="okr-f-title" placeholder="¿Qué queremos lograr?" maxlength="160"></div>
+        <div class="form-group full"><label class="form-label">Descripción</label><textarea class="form-textarea" id="okr-f-desc" placeholder="Contexto y propósito del objetivo..." rows="2"></textarea></div>
+        <div class="form-group"><label class="form-label">Responsable</label><select class="form-select" id="okr-f-owner"><option value="">— Sin asignar —</option></select></div>
+        <div class="form-group"><label class="form-label">Trimestre</label><select class="form-select" id="okr-f-quarter"><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></select></div>
+        <div class="form-group"><label class="form-label">Año</label><select class="form-select" id="okr-f-year"><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option></select></div>
+        <div class="form-group"><label class="form-label">Estado</label><select class="form-select" id="okr-f-status"><option value="on-track">En camino</option><option value="at-risk">En riesgo</option><option value="off-track">Fuera de ruta</option><option value="done">Completado</option></select></div>
+      </div>
+      <div style="margin-top:14px">
+        <div class="config-section-title" style="margin-bottom:10px">📌 Key Results</div>
+        <div class="kr-form-list" id="kr-form-list"></div>
+        <div class="kr-add-row">
+          <input class="form-input" id="kr-form-input" placeholder="Describir el Key Result..." maxlength="140">
+          <button class="btn-save" id="kr-form-add">＋</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-delete hidden" id="btn-delete-okr">Eliminar</button>
+      <button class="btn-cancel" id="cancel-okr">Cancelar</button>
+      <button class="btn-save" id="save-okr">Guardar</button>
     </div>
   </div>
 </div>
@@ -559,6 +691,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="form-group"><label class="form-label">Fecha limite</label><input class="form-input" id="f-due" type="date"></div>
         <div class="form-group"><label class="form-label">Etiqueta</label><select class="form-select" id="f-tag"><option value="">— Sin etiqueta —</option></select></div>
         <div class="form-group"><label class="form-label">Sprint</label><select class="form-select" id="f-sprint"><option value="">Sin sprint</option></select></div>
+        <div class="form-group full"><label class="form-label">🎯 Key Result vinculado</label><select class="form-select" id="f-kr"><option value="">— Sin KR asociado —</option></select><div class="kr-link-note">El progreso del KR se calculará desde las tareas vinculadas completadas.</div></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -646,7 +779,7 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, config={assignees:[],tags:[]}, curView='kanban', editId=null, detailId=null;
+let db=null, tasks={}, sprints={}, okrs={}, config={assignees:[],tags:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, okrKrDraft=[];
 
 // ── AUTH ──
 function doLogin(){
@@ -672,6 +805,7 @@ async function initFB(){
     db.ref('tasks').on('value',s=>{tasks=s.val()||{};rebuildFilters();refresh();badge('ok','Sync');});
     db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[]};rebuildConfigSelects();});
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();refresh();});
+    db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();});
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
@@ -700,6 +834,7 @@ function rebuildConfigSelects(){
   if(fT){const cv=fT.value;fT.innerHTML='<option value="">— Sin etiqueta —</option>'+config.tags.map(t=>`<option value="${esc(t)}"${t===cv?' selected':''}>${esc(t)}</option>`).join('');}
   rebuildFilters();
   renderConfigLists();
+  rebuildKrSel();
 }
 function renderConfigLists(){
   const al=document.getElementById('cfg-assignee-list');
@@ -729,7 +864,8 @@ function showPage(p){
 }
 document.getElementById('nav-dashboard').onclick=()=>showPage('dashboard');
 document.getElementById('nav-board').onclick=()=>showPage('board');
-function refresh(){renderDash();renderBoard();}
+document.getElementById('nav-okr').onclick=()=>showPage('okr');
+function refresh(){renderDash();renderBoard();renderOkrPage();}
 
 // ── SPRINT BANNER ──
 function sprintBanner(targetId){
@@ -757,6 +893,7 @@ function sprintBanner(targetId){
 // ── DASHBOARD ──
 function renderDash(){
   sprintBanner('dash-sprint-banner');
+  renderDashOkr();
   const all=Object.values(tasks);
   const today=new Date();today.setHours(0,0,0,0);
   const total=all.length;
@@ -881,6 +1018,7 @@ function openNewTask(){
   document.getElementById('f-due').value='';
   document.getElementById('f-tag').value='';
   const sp=activeSp();document.getElementById('f-sprint').value=sp?sp.id:'';
+  document.getElementById('f-kr').value='';
   document.getElementById('btn-delete-task').classList.add('hidden');
   openModal('modal-form');
 }
@@ -896,6 +1034,7 @@ function openEditTask(id){
   document.getElementById('f-due').value=t.due||'';
   document.getElementById('f-tag').value=t.tag||'';
   document.getElementById('f-sprint').value=t.sprint||'';
+  document.getElementById('f-kr').value=t.kr||'';
   document.getElementById('btn-delete-task').classList.remove('hidden');
   closeModal('modal-detail');openModal('modal-form');
 }
@@ -904,7 +1043,7 @@ async function saveTask(){
   if(!title){document.getElementById('f-title').focus();return;}
   const id=editId||genId();
   const ex=editId?(tasks[editId]||{}):{};
-  const t={id,title,desc:document.getElementById('f-desc').value.trim(),status:document.getElementById('f-status').value,priority:document.getElementById('f-priority').value,assignee:document.getElementById('f-assignee').value.trim(),due:document.getElementById('f-due').value,tag:document.getElementById('f-tag').value.trim(),sprint:document.getElementById('f-sprint').value||null,createdAt:ex.createdAt||Date.now(),updatedAt:Date.now(),comments:ex.comments||null};
+  const t={id,title,desc:document.getElementById('f-desc').value.trim(),status:document.getElementById('f-status').value,priority:document.getElementById('f-priority').value,assignee:document.getElementById('f-assignee').value.trim(),due:document.getElementById('f-due').value,tag:document.getElementById('f-tag').value.trim(),sprint:document.getElementById('f-sprint').value||null,kr:document.getElementById('f-kr').value||null,createdAt:ex.createdAt||Date.now(),updatedAt:Date.now(),comments:ex.comments||null};
   closeModal('modal-form');badge('wait','Guardando...');
   await fbSet('tasks/'+id,t);
 }
@@ -1018,6 +1157,180 @@ async function addTag(){
 async function delTag(i){
   if(!confirm('¿Eliminar esta etiqueta?'))return;
   await fbSet('config/tags',config.tags.filter((_,idx)=>idx!==i));
+}
+
+// ── OKR HELPERS ──
+function okrStatusColor(s){return s==='on-track'?'var(--okr-on-track)':s==='at-risk'?'var(--okr-at-risk)':s==='off-track'?'var(--okr-off-track)':'var(--okr-done)';}
+function okrStatusLabel(s){return s==='on-track'?'En camino':s==='at-risk'?'En riesgo':s==='off-track'?'Fuera de ruta':'Completado';}
+function krProgress(krId){
+  const linked=Object.values(tasks).filter(t=>t.kr===krId);
+  if(!linked.length)return{done:0,total:0,pct:0};
+  const done=linked.filter(t=>t.status==='done').length;
+  return{done,total:linked.length,pct:Math.round(done/linked.length*100)};
+}
+function okrProgress(okr){
+  if(!okr.krs||!okr.krs.length)return 0;
+  const sum=okr.krs.reduce((a,kr)=>a+krProgress(kr.id).pct,0);
+  return Math.round(sum/okr.krs.length);
+}
+
+// ── KR SELECT in task form ──
+function rebuildKrSel(){
+  const el=document.getElementById('f-kr');if(!el)return;
+  const cur=el.value;
+  const opts=[];
+  Object.values(okrs).sort((a,b)=>(a.quarter||'').localeCompare(b.quarter||'')).forEach(o=>{
+    if(o.krs&&o.krs.length){
+      o.krs.forEach(kr=>{
+        opts.push(`<option value="${esc(kr.id)}"${kr.id===cur?' selected':''}>${esc(o.quarter||'')} · ${esc(o.title.slice(0,40))} → ${esc(kr.title.slice(0,50))}</option>`);
+      });
+    }
+  });
+  el.innerHTML='<option value="">— Sin KR asociado —</option>'+opts.join('');
+}
+
+// ── OKR RENDER PAGE ──
+function renderOkrPage(){
+  const el=document.getElementById('okr-list');if(!el)return;
+  const qf=document.getElementById('okr-quarter-filter')?.value||'';
+  const yf=document.getElementById('okr-year-filter')?.value||'';
+  let list=Object.values(okrs).sort((a,b)=>(a.year||'')+(a.quarter||'')>(b.year||'')+(b.quarter||'')?1:-1);
+  if(qf)list=list.filter(o=>o.quarter===qf);
+  if(yf)list=list.filter(o=>String(o.year||'')===yf);
+  if(!list.length){el.innerHTML=`<div class="okr-empty"><div class="okr-empty-icon">🎯</div><div class="okr-empty-txt">Sin objetivos definidos</div><div class="okr-empty-sub">Crea el primer OKR para este trimestre</div></div>`;return;}
+  el.innerHTML=list.map(okrCardHTML).join('');
+}
+function okrCardHTML(o){
+  const pct=okrProgress(o);
+  const color=okrStatusColor(o.status);
+  const krs=(o.krs||[]);
+  const krsHTML=krs.length?krs.map((kr,i)=>{
+    const p=krProgress(kr.id);
+    const barColor=p.pct===100?'var(--okr-done)':p.pct>=60?'var(--okr-on-track)':p.pct>=30?'var(--okr-at-risk)':'var(--okr-off-track)';
+    return`<div class="kr-row">
+      <div class="kr-index">KR${i+1}</div>
+      <div class="kr-main">
+        <div class="kr-title">${esc(kr.title)}</div>
+        <div class="kr-bar-wrap"><div class="kr-bar-fill" style="width:${p.pct}%;background:${barColor}"></div></div>
+        <div class="kr-stats">
+          <span class="kr-tasks-info">${p.total?`<span>${p.done}</span> de <span>${p.total}</span> tareas completadas`:'Sin tareas vinculadas'}</span>
+          <span class="kr-pct-num" style="color:${barColor}">${p.pct}%</span>
+        </div>
+      </div>
+    </div>`;
+  }).join(''):'<div style="font-size:12px;color:var(--gray);padding:8px 0;font-style:italic">Sin Key Results definidos</div>';
+  return`<div class="okr-card">
+    <div class="okr-card-header">
+      <div class="okr-status-dot" style="background:${color}"></div>
+      <div class="okr-card-main">
+        <div class="okr-obj-title">${esc(o.title)}</div>
+        <div class="okr-obj-meta">
+          <span class="okr-meta-chip">${esc(o.quarter||'—')} ${esc(o.year||'')}</span>
+          ${o.owner?`<span class="okr-meta-chip owner">👤 ${esc(o.owner)}</span>`:''}
+          <span class="okr-meta-chip" style="background:${color}1a;color:${color};border-color:${color}33">${okrStatusLabel(o.status)}</span>
+        </div>
+      </div>
+      <div class="okr-overall">
+        <div class="okr-pct-big" style="color:${color}">${pct}%</div>
+        <div class="okr-pct-label">Progreso</div>
+      </div>
+      <div class="okr-card-actions">
+        <button class="btn-okr-action" onclick="openEditOkr('${o.id}')">✏ Editar</button>
+      </div>
+    </div>
+    <div class="okr-card-krs">${krsHTML}</div>
+  </div>`;
+}
+
+// ── OKR DASHBOARD WIDGET ──
+function renderDashOkr(){
+  const el=document.getElementById('dash-okr-list');if(!el)return;
+  const list=Object.values(okrs).sort((a,b)=>(a.year||'')+(a.quarter||'')>(b.year||'')+(b.quarter||'')?1:-1);
+  if(!list.length){el.innerHTML='<div style="font-size:12px;color:var(--gray);text-align:center;padding:10px;font-style:italic">Sin objetivos definidos aún. Ve a la pestaña OKRs para crear el primero.</div>';return;}
+  el.innerHTML=list.map(o=>{
+    const pct=okrProgress(o);
+    const color=okrStatusColor(o.status);
+    return`<div class="okr-dash-row" onclick="showPage('okr')">
+      <div class="okr-dash-dot" style="background:${color}"></div>
+      <div class="okr-dash-obj" title="${esc(o.title)}">${esc(o.quarter||'')} ${esc(o.year||'')} · ${esc(o.title)}</div>
+      <div class="okr-dash-bar"><div class="okr-dash-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div class="okr-dash-pct" style="color:${color}">${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+// ── OKR MODAL ──
+document.getElementById('btn-new-okr').onclick=openNewOkr;
+document.getElementById('close-modal-okr').onclick=()=>closeModal('modal-okr');
+document.getElementById('cancel-okr').onclick=()=>closeModal('modal-okr');
+document.getElementById('modal-okr').onclick=e=>{if(e.target===e.currentTarget)closeModal('modal-okr');};
+document.getElementById('save-okr').onclick=saveOkr;
+document.getElementById('btn-delete-okr').onclick=deleteOkr;
+document.getElementById('kr-form-add').onclick=addKrDraft;
+document.getElementById('kr-form-input').onkeydown=e=>{if(e.key==='Enter')addKrDraft();};
+document.getElementById('okr-quarter-filter').onchange=renderOkrPage;
+document.getElementById('okr-year-filter').onchange=renderOkrPage;
+
+function rebuildOkrOwnerSel(cur){
+  const el=document.getElementById('okr-f-owner');if(!el)return;
+  el.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('');
+}
+function renderKrDraftList(){
+  const el=document.getElementById('kr-form-list');if(!el)return;
+  el.innerHTML=okrKrDraft.length
+    ?okrKrDraft.map((kr,i)=>`<div class="kr-form-item"><div class="kr-form-item-header"><span class="kr-form-item-num">KR${i+1}</span><span class="kr-form-item-title">${esc(kr.title)}</span><button class="kr-form-item-del" onclick="delKrDraft(${i})">✕</button></div></div>`).join('')
+    :'<div class="config-empty">Sin Key Results — agrega al menos uno</div>';
+}
+function addKrDraft(){
+  const inp=document.getElementById('kr-form-input');
+  const v=inp.value.trim();if(!v)return;
+  okrKrDraft.push({id:genId(),title:v});
+  inp.value='';renderKrDraftList();inp.focus();
+}
+function delKrDraft(i){
+  okrKrDraft.splice(i,1);renderKrDraftList();
+}
+function openNewOkr(){
+  editOkrId=null;okrKrDraft=[];
+  document.getElementById('modal-okr-title').textContent='Nuevo Objetivo';
+  document.getElementById('okr-f-title').value='';
+  document.getElementById('okr-f-desc').value='';
+  document.getElementById('okr-f-quarter').value='Q1';
+  document.getElementById('okr-f-year').value=new Date().getFullYear();
+  document.getElementById('okr-f-status').value='on-track';
+  rebuildOkrOwnerSel('');
+  renderKrDraftList();
+  document.getElementById('btn-delete-okr').classList.add('hidden');
+  openModal('modal-okr');
+}
+function openEditOkr(id){
+  const o=okrs[id];if(!o)return;
+  editOkrId=id;okrKrDraft=[...(o.krs||[])];
+  document.getElementById('modal-okr-title').textContent='Editar Objetivo';
+  document.getElementById('okr-f-title').value=o.title||'';
+  document.getElementById('okr-f-desc').value=o.desc||'';
+  document.getElementById('okr-f-quarter').value=o.quarter||'Q1';
+  document.getElementById('okr-f-year').value=o.year||new Date().getFullYear();
+  document.getElementById('okr-f-status').value=o.status||'on-track';
+  rebuildOkrOwnerSel(o.owner||'');
+  renderKrDraftList();
+  document.getElementById('btn-delete-okr').classList.remove('hidden');
+  openModal('modal-okr');
+}
+async function saveOkr(){
+  const title=document.getElementById('okr-f-title').value.trim();
+  if(!title){document.getElementById('okr-f-title').focus();return;}
+  if(!okrKrDraft.length){alert('Agrega al menos un Key Result.');return;}
+  const id=editOkrId||genId();
+  const ex=editOkrId?(okrs[editOkrId]||{}):{};
+  const o={id,title,desc:document.getElementById('okr-f-desc').value.trim(),owner:document.getElementById('okr-f-owner').value,quarter:document.getElementById('okr-f-quarter').value,year:parseInt(document.getElementById('okr-f-year').value)||new Date().getFullYear(),status:document.getElementById('okr-f-status').value,krs:okrKrDraft,createdAt:ex.createdAt||Date.now(),updatedAt:Date.now()};
+  closeModal('modal-okr');badge('wait','Guardando OKR...');
+  await fbSet('okrs/'+id,o);
+}
+async function deleteOkr(){
+  if(!editOkrId||!confirm('¿Eliminar este objetivo y sus Key Results?'))return;
+  closeModal('modal-okr');badge('wait','Eliminando...');
+  await fbDel('okrs/'+editOkrId);editOkrId=null;
 }
 
 // ── MODAL UTILS ──
