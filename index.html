@@ -1503,8 +1503,9 @@ function tgrpDaily(secId){
 
 async function toggleDailyCheck(id){
   const t=dailyTasks[id];if(!t)return;
-  await fbSet('dailyTasks/'+id+'/checked',!t.checked);
-  await fbSet('dailyTasks/'+id+'/checkedAt',Date.now());
+  const nowChecked=!t.checked;
+  await fbSet('dailyTasks/'+id+'/checked',nowChecked);
+  await fbSet('dailyTasks/'+id+'/checkedAt',nowChecked?Date.now():0);
 }
 
 async function resetDailyChecks(){
@@ -1512,7 +1513,7 @@ async function resetDailyChecks(){
   const updates={};
   Object.keys(dailyTasks).forEach(id=>{
     updates['dailyTasks/'+id+'/checked']=false;
-    updates['dailyTasks/'+id+'/checkedAt']=null;
+    updates['dailyTasks/'+id+'/checkedAt']=0;
   });
   badge('wait','Reiniciando...');
   if(db)await db.ref().update(updates);
@@ -1571,7 +1572,6 @@ async function saveDaily(){
   const title=titleEl.value.trim();
   if(!title){titleEl.focus();return;}
   // Capturar valores ANTES de cerrar el modal
-  const titleVal=title;
   const descVal=document.getElementById('df-desc').value.trim();
   const assigneeVal=document.getElementById('df-assignee').value||'';
   const roleVal=document.getElementById('df-role').value.trim();
@@ -1579,30 +1579,24 @@ async function saveDaily(){
   const priorityVal=document.getElementById('df-priority').value||'Media';
   const id=editDailyId||genId();
   const ex=editDailyId?(dailyTasks[editDailyId]||{}):{};
+  // Firebase rechaza null — usar false/0 en su lugar
   const t={
     id,
-    title:titleVal,
+    title,
     desc:descVal,
     assignee:assigneeVal,
     role:roleVal,
     tag:tagVal,
     priority:priorityVal,
     checked:ex.checked||false,
-    checkedAt:ex.checkedAt||null,
+    checkedAt:ex.checkedAt||0,
     type:'daily',
     createdAt:ex.createdAt||Date.now(),
     updatedAt:Date.now()
   };
-  if(!db){badge('wait','Sin conexion — reintentando...');return;}
   closeModal('modal-daily-form');
   badge('wait','Guardando...');
-  try{
-    await db.ref('dailyTasks/'+id).set(t);
-    badge('ok','Guardado ✓');
-  }catch(e){
-    badge('wait','Error al guardar');
-    console.error('saveDaily error:',e);
-  }
+  await fbSet('dailyTasks/'+id, t);
 }
 
 async function deleteDaily(){
