@@ -1156,7 +1156,7 @@ function renderDashDaily(){
   const all=Object.values(dailyTasks);
   if(!all.length){
     byPerson.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div>Sin rutinas configuradas</div>';
-    summary.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><a onclick="document.getElementById('nav-daily').click()" style="color:var(--navy-light);cursor:pointer;text-decoration:underline">Ir a Rutinas →</a></div>';
+    summary.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><a onclick="document.getElementById(&quot;nav-daily&quot;).click()" style="color:var(--navy-light);cursor:pointer;text-decoration:underline">Ir a Rutinas →</a></div>';
     return;
   }
 
