@@ -622,6 +622,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="dash-card"><div class="section-title">Distribucion por estado</div><div id="dash-by-status"></div></div>
         <div class="dash-card"><div class="section-title">Historial de sprints</div><div id="dash-sprint-history"></div></div>
       </div>
+      <div class="dash-row" style="margin-bottom:12px">
+        <div class="dash-card"><div class="section-title">📋 Rutinas por responsable</div><div id="dash-daily-by-person"></div></div>
+        <div class="dash-card" id="dash-daily-summary-card"><div class="section-title">📋 Progreso de rutinas hoy</div><div id="dash-daily-summary"></div></div>
+      </div>
       <div class="okr-dash-card" style="margin-bottom:12px">
         <div class="okr-dash-title">🎯 Progreso de Objetivos (OKRs)</div>
         <div id="dash-okr-list"></div>
@@ -921,7 +925,7 @@ async function initFB(){
     db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[]};rebuildConfigSelects();});
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();renderSprintModal();refresh();badge('ok','Sync');});
     db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();badge('ok','Sync');});
-    db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();badge('ok','Sync');});
+    db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();renderDashDaily();badge('ok','Sync');});
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
@@ -1027,6 +1031,7 @@ function sprintBanner(targetId){
 function renderDash(){
   sprintBanner('dash-sprint-banner');
   renderDashOkr();
+  renderDashDaily();
   const all=Object.values(tasks);
   const today=new Date();today.setHours(0,0,0,0);
   const total=all.length;
@@ -1141,6 +1146,88 @@ function renderDash(){
 }
 function kpiCard(label,val,sub,color,pct){
   return `<div class="kpi-card"><div class="kpi-label">${label}</div><div class="kpi-value" style="color:${color}">${val}</div>${sub?`<div class="kpi-sub">${sub}</div>`:''}<div class="kpi-bar"><div class="kpi-bar-fill" style="width:${pct}%;background:${color}"></div></div></div>`;
+}
+
+function renderDashDaily(){
+  const byPerson=document.getElementById('dash-daily-by-person');
+  const summary=document.getElementById('dash-daily-summary');
+  if(!byPerson||!summary)return;
+
+  const all=Object.values(dailyTasks);
+  if(!all.length){
+    byPerson.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div>Sin rutinas configuradas</div>';
+    summary.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><a onclick="document.getElementById('nav-daily').click()" style="color:var(--navy-light);cursor:pointer;text-decoration:underline">Ir a Rutinas →</a></div>';
+    return;
+  }
+
+  // Agrupar por responsable
+  const byA={};
+  all.forEach(t=>{
+    const k=t.assignee||'Sin asignar';
+    if(!byA[k])byA[k]={total:0,done:0,roles:new Set()};
+    byA[k].total++;
+    if(t.checked)byA[k].done++;
+    if(t.role)byA[k].roles.add(t.role);
+  });
+
+  const names=Object.keys(byA).sort();
+  const maxTotal=Math.max(...names.map(n=>byA[n].total),1);
+
+  byPerson.innerHTML=`<div style="display:flex;flex-direction:column;gap:9px">
+    ${names.map(n=>{
+      const {total,done,roles}=byA[n];
+      const pct=Math.round(done/total*100);
+      const barColor=pct>=80?'var(--green)':pct>=40?'var(--orange)':'var(--navy-mid)';
+      const roleList=[...roles].slice(0,2).join(', ');
+      return`<div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span class="avatar" style="width:24px;height:24px;font-size:10px;flex-shrink:0">${esc(av(n))}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n)}</div>
+            ${roleList?`<div style="font-size:10px;color:var(--gray)">${esc(roleList)}</div>`:''}
+          </div>
+          <span style="font-size:11px;font-weight:700;color:${barColor};white-space:nowrap">${done}/${total}</span>
+          <span style="font-size:10px;color:var(--gray);white-space:nowrap">${pct}%</span>
+        </div>
+        <div style="height:6px;background:var(--gray-light);border-radius:3px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px;transition:width .5s"></div>
+        </div>
+      </div>`;
+    }).join('')}
+    <div style="margin-top:6px;padding-top:8px;border-top:1px solid var(--gray-light);text-align:right">
+      <a onclick="document.getElementById('nav-daily').click()" style="font-size:11px;color:var(--navy-light);cursor:pointer;font-weight:600">Ver todas las rutinas →</a>
+    </div>
+  </div>`;
+
+  // Panel de progreso global hoy
+  const totalAll=all.length;
+  const doneAll=all.filter(t=>t.checked).length;
+  const pctAll=Math.round(doneAll/totalAll*100);
+  const barCol=pctAll>=80?'var(--green)':pctAll>=40?'var(--orange)':'var(--navy-mid)';
+
+  summary.innerHTML=`
+    <div style="text-align:center;padding:12px 0 8px">
+      <div style="font-size:36px;font-weight:800;color:${barCol}">${pctAll}%</div>
+      <div style="font-size:12px;color:var(--gray);margin-top:2px">${doneAll} de ${totalAll} marcadas hoy</div>
+    </div>
+    <div style="height:8px;background:var(--gray-light);border-radius:4px;overflow:hidden;margin-bottom:14px">
+      <div style="width:${pctAll}%;height:100%;background:${barCol};border-radius:4px;transition:width .5s"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      ${names.map(n=>{
+        const {total,done}=byA[n];
+        const p=Math.round(done/total*100);
+        const bc=p>=80?'var(--green)':p>=40?'var(--orange)':'var(--navy-mid)';
+        return`<div style="display:flex;align-items:center;gap:8px">
+          <span class="avatar" style="width:20px;height:20px;font-size:9px;flex-shrink:0">${esc(av(n))}</span>
+          <div style="font-size:11px;font-weight:600;width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n)}</div>
+          <div style="flex:1;height:5px;background:var(--gray-light);border-radius:3px;overflow:hidden">
+            <div style="width:${p}%;height:100%;background:${bc};border-radius:3px"></div>
+          </div>
+          <div style="font-size:10px;font-weight:700;color:${bc};width:28px;text-align:right">${p}%</div>
+        </div>`;
+      }).join('')}
+    </div>`;
 }
 
 // ── BOARD ──
@@ -1444,6 +1531,8 @@ document.getElementById('daily-search').oninput=()=>renderDailyPage();
 function openNewDaily(){
   editDailyId=null;
   document.getElementById('modal-daily-title').textContent='Nueva rutina de puesto';
+  // Primero reconstruir selects, LUEGO resetear valores
+  rebuildDailyFormSels();
   document.getElementById('df-title').value='';
   document.getElementById('df-desc').value='';
   document.getElementById('df-assignee').value='';
@@ -1451,26 +1540,22 @@ function openNewDaily(){
   document.getElementById('df-tag').value='';
   document.getElementById('df-priority').value='Media';
   document.getElementById('btn-delete-daily').classList.add('hidden');
-  rebuildDailyFormSels();
   openModal('modal-daily-form');
 }
 
 function openDailyDetail(id){
   const t=dailyTasks[id];if(!t)return;
-  // Reutilizamos el mismo modal de edición para ver detalles
   editDailyId=id;
   document.getElementById('modal-daily-title').textContent='Editar rutina';
+  document.getElementById('btn-delete-daily').classList.remove('hidden');
+  // Reconstruir selects PRIMERO, luego asignar valores
+  rebuildDailyFormSels();
   document.getElementById('df-title').value=t.title||'';
   document.getElementById('df-desc').value=t.desc||'';
   document.getElementById('df-assignee').value=t.assignee||'';
   document.getElementById('df-role').value=t.role||'';
   document.getElementById('df-tag').value=t.tag||'';
   document.getElementById('df-priority').value=t.priority||'Media';
-  document.getElementById('btn-delete-daily').classList.remove('hidden');
-  rebuildDailyFormSels();
-  // Re-set values after rebuild
-  document.getElementById('df-assignee').value=t.assignee||'';
-  document.getElementById('df-tag').value=t.tag||'';
   openModal('modal-daily-form');
 }
 
@@ -1482,25 +1567,42 @@ function rebuildDailyFormSels(){
 }
 
 async function saveDaily(){
-  const title=document.getElementById('df-title').value.trim();
-  if(!title){document.getElementById('df-title').focus();return;}
+  const titleEl=document.getElementById('df-title');
+  const title=titleEl.value.trim();
+  if(!title){titleEl.focus();return;}
+  // Capturar valores ANTES de cerrar el modal
+  const titleVal=title;
+  const descVal=document.getElementById('df-desc').value.trim();
+  const assigneeVal=document.getElementById('df-assignee').value||'';
+  const roleVal=document.getElementById('df-role').value.trim();
+  const tagVal=document.getElementById('df-tag').value||'';
+  const priorityVal=document.getElementById('df-priority').value||'Media';
   const id=editDailyId||genId();
   const ex=editDailyId?(dailyTasks[editDailyId]||{}):{};
   const t={
-    id, title,
-    desc:document.getElementById('df-desc').value.trim(),
-    assignee:document.getElementById('df-assignee').value.trim(),
-    role:document.getElementById('df-role').value.trim(),
-    tag:document.getElementById('df-tag').value.trim(),
-    priority:document.getElementById('df-priority').value,
+    id,
+    title:titleVal,
+    desc:descVal,
+    assignee:assigneeVal,
+    role:roleVal,
+    tag:tagVal,
+    priority:priorityVal,
     checked:ex.checked||false,
     checkedAt:ex.checkedAt||null,
     type:'daily',
     createdAt:ex.createdAt||Date.now(),
     updatedAt:Date.now()
   };
-  closeModal('modal-daily-form');badge('wait','Guardando...');
-  await fbSet('dailyTasks/'+id,t);
+  if(!db){badge('wait','Sin conexion — reintentando...');return;}
+  closeModal('modal-daily-form');
+  badge('wait','Guardando...');
+  try{
+    await db.ref('dailyTasks/'+id).set(t);
+    badge('ok','Guardado ✓');
+  }catch(e){
+    badge('wait','Error al guardar');
+    console.error('saveDaily error:',e);
+  }
 }
 
 async function deleteDaily(){
