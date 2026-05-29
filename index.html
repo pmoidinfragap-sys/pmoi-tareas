@@ -423,6 +423,37 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 .kanban-board::-webkit-scrollbar{height:4px;}
 .kanban-board::-webkit-scrollbar-thumb{background:var(--gray-mid);border-radius:3px;}
 .hidden{display:none!important;}
+
+/* DAILY ROUTINES */
+.daily-section{margin-bottom:18px;}
+.daily-section-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-radius:var(--radius) var(--radius) 0 0;border:1px solid var(--gray-light);border-bottom:2px solid var(--navy-light);cursor:pointer;user-select:none;}
+.daily-section-avatar{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.daily-section-name{font-size:13px;font-weight:700;color:var(--navy);flex:1;}
+.daily-section-counts{font-size:11px;color:var(--gray);display:flex;gap:8px;align-items:center;}
+.daily-section-arrow{font-size:12px;color:var(--gray);}
+.daily-cards{background:#fff;border:1px solid var(--gray-light);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:6px 8px;display:flex;flex-direction:column;gap:5px;}
+.daily-card{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:9px;background:var(--gray-pale);border:1px solid transparent;cursor:pointer;transition:background .15s,border-color .15s;}
+.daily-card:hover{background:rgba(3,43,67,.05);border-color:var(--gray-light);}
+.daily-card.is-done{opacity:.55;}
+.daily-check{width:18px;height:18px;border-radius:50%;border:2px solid var(--gray-mid);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;}
+.daily-check.checked{background:var(--green);border-color:var(--green);color:#fff;font-size:10px;}
+.daily-card-body{flex:1;min-width:0;}
+.daily-card-title{font-size:13px;font-weight:600;color:var(--text);line-height:1.4;}
+.daily-card.is-done .daily-card-title{text-decoration:line-through;color:var(--gray);}
+.daily-card-desc{font-size:11px;color:var(--gray);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.daily-card-meta{display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap;}
+.daily-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:rgba(10,110,160,.1);color:var(--navy-light);}
+.daily-role-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(108,92,231,.1);color:var(--purple);}
+.daily-freq{font-size:10px;color:var(--gray);}
+.daily-empty{text-align:center;padding:18px;color:var(--gray);font-size:12px;}
+.daily-top-banner{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--gray-light);border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;}
+.daily-banner-icon{font-size:22px;}
+.daily-banner-text{flex:1;}
+.daily-banner-title{font-size:13px;font-weight:700;color:var(--navy);}
+.daily-banner-sub{font-size:11px;color:var(--gray);margin-top:2px;}
+.daily-banner-pct{font-size:22px;font-weight:800;color:var(--navy);}
+.daily-reset-btn{padding:6px 13px;background:rgba(3,43,67,.07);border:none;border-radius:8px;font-size:11px;font-weight:700;color:var(--navy);cursor:pointer;transition:background .15s;}
+.daily-reset-btn:hover{background:rgba(3,43,67,.13);}
 </style>
 
 </head>
@@ -574,6 +605,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
     <div class="nav">
       <button class="nav-btn active" id="nav-dashboard">Dashboard</button>
       <button class="nav-btn" id="nav-board">Tablero</button>
+      <button class="nav-btn" id="nav-daily">📋 Rutinas</button>
       <button class="nav-btn" id="nav-okr">🎯 OKRs</button>
     </div>
   </div>
@@ -615,6 +647,20 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
       <div id="view-list" class="hidden"></div>
     </div>
   </div>
+
+    <!-- DAILY / RUTINAS PAGE -->
+    <div id="page-daily" class="page">
+      <div class="main" style="padding-top:0">
+        <div class="toolbar" style="flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px">
+            <select class="filter-select" id="daily-filter-assignee"><option value="">Todos los responsables</option></select>
+            <input class="search-input" id="daily-search" placeholder="Buscar rutina...">
+          </div>
+          <button class="btn-new" id="btn-new-daily">＋ Nueva rutina</button>
+        </div>
+        <div id="daily-board"></div>
+      </div>
+    </div>
 
     <!-- OKR PAGE -->
     <div id="page-okr" class="page">
@@ -740,6 +786,34 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
   </div>
 </div>
 
+<!-- MODAL RUTINA DIARIA -->
+<div class="modal-overlay" id="modal-daily-form">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-daily-title">Nueva rutina de puesto</span>
+      <button class="modal-close" id="close-modal-daily">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:11px;color:var(--gray);margin-bottom:12px;padding:8px 10px;background:var(--gray-pale);border-radius:8px;line-height:1.5">
+        📋 Las rutinas de puesto son actividades recurrentes sin fecha límite, asociadas al rol o posición del responsable.
+      </div>
+      <div class="form-grid">
+        <div class="form-group full"><label class="form-label">Nombre de la rutina *</label><input class="form-input" id="df-title" placeholder="Ej: Revisar bandeja de correos, Validar avances en obra..." maxlength="120"></div>
+        <div class="form-group full"><label class="form-label">Descripción / notas</label><textarea class="form-textarea" id="df-desc" placeholder="Detalle de la actividad, criterios o notas..." rows="2"></textarea></div>
+        <div class="form-group"><label class="form-label">Responsable</label><select class="form-select" id="df-assignee"><option value="">— Sin asignar —</option></select></div>
+        <div class="form-group"><label class="form-label">Rol / Posición</label><input class="form-input" id="df-role" placeholder="Ej: Coordinador, PMO, Residente..." maxlength="60"></div>
+        <div class="form-group"><label class="form-label">Etiqueta</label><select class="form-select" id="df-tag"><option value="">— Sin etiqueta —</option></select></div>
+        <div class="form-group"><label class="form-label">Prioridad</label><select class="form-select" id="df-priority"><option value="Media">Media</option><option value="Alta">Alta</option><option value="Baja">Baja</option></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-delete hidden" id="btn-delete-daily">Eliminar</button>
+      <button class="btn-cancel" id="cancel-daily">Cancelar</button>
+      <button class="btn-save" id="save-daily">Guardar rutina</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL DETALLE -->
 <div class="modal-overlay" id="modal-detail">
   <div class="modal">
@@ -847,6 +921,7 @@ async function initFB(){
     db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[]};rebuildConfigSelects();});
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();renderSprintModal();refresh();badge('ok','Sync');});
     db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();badge('ok','Sync');});
+    db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();badge('ok','Sync');});
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
@@ -921,8 +996,9 @@ function showPage(p){
 }
 document.getElementById('nav-dashboard').onclick=()=>showPage('dashboard');
 document.getElementById('nav-board').onclick=()=>showPage('board');
+document.getElementById('nav-daily').onclick=()=>showPage('daily');
 document.getElementById('nav-okr').onclick=()=>showPage('okr');
-function refresh(){renderDash();renderBoard();renderOkrPage();}
+function refresh(){renderDash();renderBoard();renderDailyPage();renderOkrPage();}
 
 // ── SPRINT BANNER ──
 function sprintBanner(targetId){
@@ -1233,6 +1309,204 @@ async function deleteFromDetail(){
   if(!confirm('Eliminar esta tarea?'))return;
   closeModal('modal-detail');badge('wait','Eliminando...');
   await fbDel('tasks/'+detailId);detailId=null;
+}
+
+// ── DAILY ROUTINES ──
+let dailyTasks={}, editDailyId=null;
+
+function rebuildDailyAssigneeSel(){
+  const sel=document.getElementById('daily-filter-assignee');if(!sel)return;
+  const cur=sel.value;
+  const names=[...new Set([...config.assignees,...Object.values(dailyTasks).map(t=>t.assignee).filter(Boolean)])].sort();
+  sel.innerHTML='<option value="">Todos los responsables</option>'+names.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('');
+}
+
+function renderDailyPage(){
+  rebuildDailyAssigneeSel();
+  const filterA=document.getElementById('daily-filter-assignee')?.value||'';
+  const q=(document.getElementById('daily-search')?.value||'').toLowerCase();
+  const all=Object.values(dailyTasks).filter(t=>{
+    if(filterA&&t.assignee!==filterA)return false;
+    if(q&&!t.title?.toLowerCase().includes(q)&&!t.desc?.toLowerCase().includes(q))return false;
+    return true;
+  });
+
+  const board=document.getElementById('daily-board');if(!board)return;
+
+  // Summary banner
+  const total=all.length;
+  const done=all.filter(t=>t.checked).length;
+  const pct=total?Math.round(done/total*100):0;
+  let bannerHTML=`<div class="daily-top-banner">
+    <div class="daily-banner-icon">📋</div>
+    <div class="daily-banner-text">
+      <div class="daily-banner-title">Rutinas de puesto</div>
+      <div class="daily-banner-sub">Actividades recurrentes por rol · ${done} de ${total} marcadas hoy</div>
+    </div>
+    <div class="daily-banner-pct" style="color:${pct>=80?'var(--green)':pct>=40?'var(--orange)':'var(--navy)'}">${pct}%</div>
+    <button class="daily-reset-btn" onclick="resetDailyChecks()" title="Desmarcar todas">↺ Reiniciar</button>
+  </div>`;
+
+  if(!total){
+    board.innerHTML=bannerHTML+`<div class="daily-empty"><div style="font-size:32px;margin-bottom:8px">📋</div>Sin rutinas de puesto.<br>Agrega la primera con el botón "+ Nueva rutina".</div>`;
+    return;
+  }
+
+  // Group by assignee
+  const byAssignee={};
+  all.forEach(t=>{
+    const k=t.assignee||'Sin asignar';
+    if(!byAssignee[k])byAssignee[k]=[];
+    byAssignee[k].push(t);
+  });
+
+  let html=bannerHTML;
+  Object.keys(byAssignee).sort().forEach(name=>{
+    const items=byAssignee[name].sort((a,b)=>{
+      // Alta primero, luego por título
+      const po={Alta:0,Media:1,Baja:2};
+      return(po[a.priority]||1)-(po[b.priority]||1)||(a.title||'').localeCompare(b.title||'');
+    });
+    const doneC=items.filter(t=>t.checked).length;
+    const secId='daily-sec-'+name.replace(/\s+/g,'-');
+    html+=`<div class="daily-section">
+      <div class="daily-section-header" onclick="tgrpDaily('${secId}')">
+        <div class="daily-section-avatar">${esc(av(name))}</div>
+        <div class="daily-section-name">${esc(name)}</div>
+        <div class="daily-section-counts">
+          <span style="color:var(--green);font-weight:700">${doneC} ✓</span>
+          <span>/ ${items.length}</span>
+        </div>
+        <span class="daily-section-arrow" id="da_${secId}">▼</span>
+      </div>
+      <div class="daily-cards" id="${secId}">
+        ${items.map(dailyCardHTML).join('')}
+      </div>
+    </div>`;
+  });
+
+  board.innerHTML=html;
+}
+
+function dailyCardHTML(t){
+  const pri={Alta:'var(--red)',Media:'var(--orange)',Baja:'var(--gray-mid)'};
+  const priColor=pri[t.priority]||'var(--gray-mid)';
+  return`<div class="daily-card${t.checked?' is-done':''}" onclick="openDailyDetail('${t.id}')">
+    <div class="daily-check${t.checked?' checked':''}" onclick="event.stopPropagation();toggleDailyCheck('${t.id}')">${t.checked?'✓':''}</div>
+    <div class="daily-card-body">
+      <div class="daily-card-title">${esc(t.title)}</div>
+      ${t.desc?`<div class="daily-card-desc">${esc(t.desc)}</div>`:''}
+      <div class="daily-card-meta">
+        ${t.tag?`<span class="daily-tag">${esc(t.tag)}</span>`:''}
+        ${t.role?`<span class="daily-role-badge">👤 ${esc(t.role)}</span>`:''}
+        <span style="width:7px;height:7px;border-radius:50%;background:${priColor};flex-shrink:0;margin-left:auto" title="${t.priority||'Media'}"></span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function tgrpDaily(secId){
+  const el=document.getElementById(secId);
+  const a=document.getElementById('da_'+secId);
+  if(!el)return;
+  const h=el.style.display==='none';
+  el.style.display=h?'':'none';
+  if(a)a.innerHTML=h?'▼':'▶';
+}
+
+async function toggleDailyCheck(id){
+  const t=dailyTasks[id];if(!t)return;
+  await fbSet('dailyTasks/'+id+'/checked',!t.checked);
+  await fbSet('dailyTasks/'+id+'/checkedAt',Date.now());
+}
+
+async function resetDailyChecks(){
+  if(!confirm('¿Desmarcar todas las rutinas?'))return;
+  const updates={};
+  Object.keys(dailyTasks).forEach(id=>{
+    updates['dailyTasks/'+id+'/checked']=false;
+    updates['dailyTasks/'+id+'/checkedAt']=null;
+  });
+  badge('wait','Reiniciando...');
+  if(db)await db.ref().update(updates);
+}
+
+// Daily form
+document.getElementById('btn-new-daily').onclick=openNewDaily;
+document.getElementById('close-modal-daily').onclick=()=>closeModal('modal-daily-form');
+document.getElementById('cancel-daily').onclick=()=>closeModal('modal-daily-form');
+document.getElementById('save-daily').onclick=saveDaily;
+document.getElementById('btn-delete-daily').onclick=deleteDaily;
+document.getElementById('modal-daily-form').onclick=e=>{if(e.target===e.currentTarget)closeModal('modal-daily-form');};
+document.getElementById('daily-filter-assignee').onchange=()=>renderDailyPage();
+document.getElementById('daily-search').oninput=()=>renderDailyPage();
+
+function openNewDaily(){
+  editDailyId=null;
+  document.getElementById('modal-daily-title').textContent='Nueva rutina de puesto';
+  document.getElementById('df-title').value='';
+  document.getElementById('df-desc').value='';
+  document.getElementById('df-assignee').value='';
+  document.getElementById('df-role').value='';
+  document.getElementById('df-tag').value='';
+  document.getElementById('df-priority').value='Media';
+  document.getElementById('btn-delete-daily').classList.add('hidden');
+  rebuildDailyFormSels();
+  openModal('modal-daily-form');
+}
+
+function openDailyDetail(id){
+  const t=dailyTasks[id];if(!t)return;
+  // Reutilizamos el mismo modal de edición para ver detalles
+  editDailyId=id;
+  document.getElementById('modal-daily-title').textContent='Editar rutina';
+  document.getElementById('df-title').value=t.title||'';
+  document.getElementById('df-desc').value=t.desc||'';
+  document.getElementById('df-assignee').value=t.assignee||'';
+  document.getElementById('df-role').value=t.role||'';
+  document.getElementById('df-tag').value=t.tag||'';
+  document.getElementById('df-priority').value=t.priority||'Media';
+  document.getElementById('btn-delete-daily').classList.remove('hidden');
+  rebuildDailyFormSels();
+  // Re-set values after rebuild
+  document.getElementById('df-assignee').value=t.assignee||'';
+  document.getElementById('df-tag').value=t.tag||'';
+  openModal('modal-daily-form');
+}
+
+function rebuildDailyFormSels(){
+  const fA=document.getElementById('df-assignee');
+  if(fA){fA.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');}
+  const fT=document.getElementById('df-tag');
+  if(fT){fT.innerHTML='<option value="">— Sin etiqueta —</option>'+config.tags.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');}
+}
+
+async function saveDaily(){
+  const title=document.getElementById('df-title').value.trim();
+  if(!title){document.getElementById('df-title').focus();return;}
+  const id=editDailyId||genId();
+  const ex=editDailyId?(dailyTasks[editDailyId]||{}):{};
+  const t={
+    id, title,
+    desc:document.getElementById('df-desc').value.trim(),
+    assignee:document.getElementById('df-assignee').value.trim(),
+    role:document.getElementById('df-role').value.trim(),
+    tag:document.getElementById('df-tag').value.trim(),
+    priority:document.getElementById('df-priority').value,
+    checked:ex.checked||false,
+    checkedAt:ex.checkedAt||null,
+    type:'daily',
+    createdAt:ex.createdAt||Date.now(),
+    updatedAt:Date.now()
+  };
+  closeModal('modal-daily-form');badge('wait','Guardando...');
+  await fbSet('dailyTasks/'+id,t);
+}
+
+async function deleteDaily(){
+  if(!editDailyId||!confirm('¿Eliminar esta rutina?'))return;
+  closeModal('modal-daily-form');badge('wait','Eliminando...');
+  await fbDel('dailyTasks/'+editDailyId);editDailyId=null;
 }
 
 // ── SPRINTS ──
