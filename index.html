@@ -308,22 +308,35 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 .list-group-dot{width:8px;height:8px;border-radius:50%;}
 .list-group-arrow{font-size:9px;margin-left:auto;}
 .list-group-cnt{background:var(--gray-pale);border-radius:20px;padding:1px 7px;font-size:10px;}
-.list-row{background:#fff;border-radius:10px;border:1px solid var(--gray-light);display:flex;align-items:center;gap:10px;padding:9px 13px;cursor:pointer;transition:box-shadow .15s,border-color .15s;}
+.list-view{display:flex;flex-direction:column;gap:5px;}
+/* Columnas: [dot 14px] [título flex] [tag 100px] [asignado 130px] [fecha 95px] [cmts 34px] [status 90px] */
+.list-row{background:#fff;border-radius:10px;border:1px solid var(--gray-light);
+  display:grid;
+  grid-template-columns:14px 1fr 100px 130px 95px 34px 90px;
+  align-items:center;gap:0 8px;padding:9px 13px;cursor:pointer;transition:box-shadow .15s,border-color .15s;}
 .list-row:hover{box-shadow:var(--shadow);border-color:var(--gray-mid);}
-.list-pri{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
-.list-title{flex:1;font-size:13px;font-weight:600;color:var(--text);min-width:0;}
+.list-pri{width:6px;height:6px;border-radius:50%;justify-self:center;}
+.list-title{font-size:13px;font-weight:600;color:var(--text);min-width:0;overflow:hidden;}
 .list-title small{display:block;font-size:11px;font-weight:400;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.list-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:var(--gray-pale);color:var(--navy-light);border:1px solid var(--gray-light);white-space:nowrap;}
-.list-assignee{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:11px;color:var(--gray);}
-.list-due{font-size:11px;color:var(--gray);white-space:nowrap;}
-.list-cmts{font-size:10px;color:var(--gray);display:flex;align-items:center;gap:2px;white-space:nowrap;}
-.status-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;}
+.list-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:var(--gray-pale);color:var(--navy-light);border:1px solid var(--gray-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}
+.list-assignee{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--gray);min-width:0;overflow:hidden;}
+.list-assignee-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.list-due{font-size:11px;color:var(--gray);white-space:nowrap;text-align:center;}
+.list-cmts{font-size:10px;color:var(--gray);display:flex;align-items:center;gap:2px;white-space:nowrap;justify-content:center;}
+.status-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;justify-content:center;}
 .s-backlog{background:rgba(122,138,158,.12);color:var(--col-backlog);}
 .s-todo{background:rgba(10,110,160,.12);color:var(--col-todo);}
 .s-progress{background:rgba(251,133,0,.12);color:var(--col-progress);}
 .s-review{background:rgba(108,92,231,.12);color:var(--col-review);}
 .s-done{background:rgba(0,184,148,.12);color:var(--col-done);}
-@media(max-width:600px){.list-tag,.list-assignee,.list-due,.list-cmts{display:none;}}
+@media(max-width:780px){
+  .list-row{grid-template-columns:14px 1fr 28px 90px;}
+  .list-tag,.list-assignee,.list-due{display:none;}
+}
+@media(max-width:480px){
+  .list-row{grid-template-columns:14px 1fr 90px;}
+  .list-cmts{display:none;}
+}
 
 /* DASHBOARD */
 .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px;}
@@ -951,13 +964,31 @@ function renderDash(){
     kpiCard('Completadas',doneN,'tareas','var(--green)',donePct)+
     kpiCard('Vencidas',overdueN,'sin cerrar','var(--red)',overdueN&&total?Math.round(overdueN/total*100):0);
 
+  // Carga ACTIVA (sin done)
   const byA={};
   all.filter(t=>t.status!=='done').forEach(t=>{const k=t.assignee||'Sin asignar';byA[k]=(byA[k]||0)+1;});
-  const maxW=Math.max(...Object.values(byA),1);
-  const wE=Object.entries(byA).sort((a,b)=>b[1]-a[1]);
-  document.getElementById('dash-workload').innerHTML=wE.length
-    ?wE.map(([n,c])=>`<div class="workload-item"><div class="workload-name" title="${esc(n)}">${esc(n)}</div><div class="workload-bar-wrap"><div class="workload-bar-fill" style="width:${Math.round(c/maxW*100)}%"></div></div><div class="workload-count">${c}</div></div>`).join('')
+  // Carga HISTÓRICA (todas las tareas)
+  const byAHist={};
+  all.forEach(t=>{const k=t.assignee||'Sin asignar';byAHist[k]=(byAHist[k]||0)+1;});
+  const maxW=Math.max(...Object.values(byAHist),1);
+  // Unir responsables de ambos mapas
+  const allAssignees=[...new Set([...Object.keys(byA),...Object.keys(byAHist)])].sort((a,b)=>(byAHist[b]||0)-(byAHist[a]||0));
+  document.getElementById('dash-workload').innerHTML=allAssignees.length
+    ?`<div style="display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:0 8px;row-gap:8px">${allAssignees.map(n=>{
+        const activo=byA[n]||0;const hist=byAHist[n]||0;const done=hist-activo;
+        const pctAct=Math.round(activo/maxW*100);const pctHist=Math.round(hist/maxW*100);
+        return`<div class="workload-name" title="${esc(n)}" style="width:96px">${esc(n)}</div>`+
+          `<div class="workload-bar-wrap" style="position:relative">`+
+            `<div style="position:absolute;top:0;left:0;width:${pctHist}%;height:100%;background:var(--gray-mid);border-radius:4px;transition:width .5s"></div>`+
+            `<div class="workload-bar-fill" style="position:relative;width:${pctAct}%;background:var(--navy-mid);z-index:1"></div>`+
+          `</div>`+
+          `<div style="font-size:10px;color:var(--green);font-weight:700;white-space:nowrap" title="Completadas">${done}✓</div>`+
+          `<div class="workload-count" title="Activas">${activo}</div>`;
+      }).join('')}</div>`
     :'<div class="empty-state"><div class="empty-icon">👥</div>Sin tareas asignadas</div>';
+  // Leyenda mini
+  const wLegend=document.getElementById('dash-workload');
+  if(allAssignees.length)wLegend.insertAdjacentHTML('beforeend',`<div style="display:flex;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid var(--gray-light)"><span style="font-size:10px;color:var(--gray);display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:4px;background:var(--navy-mid);border-radius:2px"></span>Activas</span><span style="font-size:10px;color:var(--gray);display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:4px;background:var(--gray-mid);border-radius:2px"></span>Históricas</span><span style="font-size:10px;color:var(--green);display:flex;align-items:center;gap:4px">✓ Completadas</span></div>`);
 
   const overdueList=all.filter(t=>t.due&&new Date(t.due+'T00:00:00')<today&&t.status!=='done').sort((a,b)=>new Date(a.due)-new Date(b.due));
   document.getElementById('dash-overdue').innerHTML=overdueList.length
@@ -1096,7 +1127,16 @@ function renderList(filtered){
 }
 function lRowHTML(t){
   const dc=dueCls(t.due);const col=CMAP[t.status];const cmts=t.comments?Object.keys(t.comments).length:0;
-  return`<div class="list-row" onclick="openDetail('${t.id}')"><span class="list-pri ${priCls(t.priority)}"></span><div class="list-title">${esc(t.title)}${t.desc?`<small>${esc(t.desc)}</small>`:''}</div>${t.tag?`<span class="list-tag">${esc(t.tag)}</span>`:''} ${t.assignee?`<span class="list-assignee"><span class="avatar">${esc(av(t.assignee))}</span>${esc(t.assignee)}</span>`:''} ${t.due?`<span class="list-due ${dc}">📅 ${fmtD(t.due)}</span>`:''} ${cmts?`<span class="list-cmts">💬 ${cmts}</span>`:''}<span class="status-badge ${col?.sc||''}">${col?.lb||t.status}</span></div>`;
+  // Siempre emite las 7 celdas del grid para mantener alineación de columnas
+  return`<div class="list-row" onclick="openDetail('${t.id}')">` +
+    `<span class="list-pri ${priCls(t.priority)}"></span>` +
+    `<div class="list-title">${esc(t.title)}${t.desc?`<small>${esc(t.desc)}</small>`:''}</div>` +
+    `<span class="list-tag">${t.tag?esc(t.tag):''}</span>` +
+    `<span class="list-assignee">${t.assignee?`<span class="avatar">${esc(av(t.assignee))}</span><span class="list-assignee-name">${esc(t.assignee)}</span>`:''}</span>` +
+    `<span class="list-due ${t.due?dc:''}">${t.due?`📅 ${fmtD(t.due)}`:''}</span>` +
+    `<span class="list-cmts">${cmts?`💬 ${cmts}`:''}</span>` +
+    `<span class="status-badge ${col?.sc||''}">${col?.lb||t.status}</span>` +
+  `</div>`;
 }
 function tgrp(gid){const el=document.getElementById(gid);const a=document.getElementById('a_'+gid);if(!el)return;const h=el.style.display==='none';el.style.display=h?'':'none';if(a)a.innerHTML=h?'▼':'▶';}
 
