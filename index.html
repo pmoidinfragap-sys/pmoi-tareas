@@ -659,7 +659,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
       <div class="okr-dash-card" style="margin-bottom:12px">
         <div class="okr-dash-title">🎯 Progreso de Objetivos (OKRs)</div>
         <div class="okr-dash-tabs">
-          <button class="okr-dash-tab active" id="okr-dash-tab-cards" onclick="setOkrDashTab('cards')">📊 Por área</button>
+          <button class="okr-dash-tab active" id="okr-dash-tab-cards" onclick="setOkrDashTab('cards')">📊 Por eje</button>
           <button class="okr-dash-tab" id="okr-dash-tab-sem" onclick="setOkrDashTab('sem')">🚦 Semáforo</button>
         </div>
         <div id="dash-okr-list"></div>
@@ -719,7 +719,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
               <option value="2027">2027</option>
             </select>
             <select class="okr-quarter-sel" id="okr-area-filter">
-              <option value="">Todas las áreas</option>
+              <option value="">Todos los ejes</option>
             </select>
           </div>
           <button class="btn-add-okr" id="btn-new-okr">＋ Nuevo Objetivo</button>
@@ -746,7 +746,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="form-group full"><label class="form-label">Objetivo *</label><input class="form-input" id="okr-f-title" placeholder="¿Qué queremos lograr?" maxlength="160"></div>
         <div class="form-group full"><label class="form-label">Descripción</label><textarea class="form-textarea" id="okr-f-desc" placeholder="Contexto y propósito del objetivo..." rows="2"></textarea></div>
         <div class="form-group"><label class="form-label">Responsable</label><select class="form-select" id="okr-f-owner"><option value="">— Sin asignar —</option></select></div>
-        <div class="form-group"><label class="form-label">Área</label><select class="form-select" id="okr-f-area"><option value="">— Sin área —</option></select></div>
+        <div class="form-group"><label class="form-label">Eje Estratégico</label><select class="form-select" id="okr-f-area"><option value="">— Sin eje —</option></select></div>
         <div class="form-group"><label class="form-label">Trimestre</label><select class="form-select" id="okr-f-quarter"><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></select></div>
         <div class="form-group"><label class="form-label">Año</label><select class="form-select" id="okr-f-year"><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option></select></div>
         <div class="form-group"><label class="form-label">Fecha inicio</label><input class="form-input" type="date" id="okr-f-start"></div>
@@ -794,11 +794,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         </div>
       </div>
       <div class="config-section">
-        <div class="config-section-title">🗂 Áreas del equipo (OKRs)</div>
-        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;line-height:1.5">Los OKRs se agruparán y se reportarán por área.</div>
+        <div class="config-section-title">🧭 Ejes Estratégicos (OKRs)</div>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;line-height:1.5">Los OKRs se agruparán y reportarán por eje estratégico (perspectiva del BSC o PMO).</div>
         <div class="config-list" id="cfg-area-list"></div>
         <div class="config-add-row">
-          <input class="form-input" id="cfg-area-input" placeholder="Ej: Infraestructura, Tecnología, Administración..." maxlength="50">
+          <input class="form-input" id="cfg-area-input" placeholder="Ej: Eficiencia Operativa, Innovación, Sostenibilidad..." maxlength="50">
           <button class="btn-save" id="cfg-area-add">＋ Agregar</button>
         </div>
       </div>
@@ -1015,9 +1015,9 @@ function rebuildConfigSelects(){
   if(fA){const cv=fA.value;fA.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${esc(n)}</option>`).join('');}
   const fT=document.getElementById('f-tag');
   if(fT){const cv=fT.value;fT.innerHTML='<option value="">— Sin etiqueta —</option>'+config.tags.map(t=>`<option value="${esc(t)}"${t===cv?' selected':''}>${esc(t)}</option>`).join('');}
-  // OKR area selects
+  // OKR eje estratégico selects
   const oaf=document.getElementById('okr-area-filter');
-  if(oaf){const cv=oaf.value;oaf.innerHTML='<option value="">Todas las áreas</option>'+config.areas.map(a=>`<option value="${esc(a)}"${a===cv?' selected':''}>${esc(a)}</option>`).join('');}
+  if(oaf){const cv=oaf.value;oaf.innerHTML='<option value="">Todos los ejes</option>'+config.areas.map(a=>`<option value="${esc(a)}"${a===cv?' selected':''}>${esc(a)}</option>`).join('');}
   rebuildOkrAreaSel();
   rebuildFilters();
   renderConfigLists();
@@ -1034,8 +1034,8 @@ function renderConfigLists(){
     :'<div class="config-empty">Sin etiquetas definidas aún</div>';}
   const ael=document.getElementById('cfg-area-list');
   if(ael){ael.innerHTML=config.areas.length
-    ?config.areas.map((a,i)=>`<div class="config-item"><span class="config-item-text">🗂 ${esc(a)}</span><button class="config-item-del" onclick="delArea(${i})">✕</button></div>`).join('')
-    :'<div class="config-empty">Sin áreas definidas — los OKRs aparecerán sin agrupar</div>';}
+    ?config.areas.map((a,i)=>`<div class="config-item"><span class="config-item-text">🧭 ${esc(a)}</span><button class="config-item-del" onclick="delArea(${i})">✕</button></div>`).join('')
+    :'<div class="config-empty">Sin ejes estratégicos definidos — los OKRs aparecerán sin agrupar</div>';}
 }
 function rebuildSprintSel(){
   const fsp=document.getElementById('filter-sprint');if(!fsp)return;
@@ -1847,14 +1847,14 @@ async function addArea(){
   inp.value='';inp.focus();
 }
 async function delArea(i){
-  if(!confirm('¿Eliminar esta área?\n(Los OKRs vinculados quedarán sin área)'))return;
+  if(!confirm('¿Eliminar este eje estratégico?\n(Los OKRs vinculados quedarán sin eje)'))return;
   await fbSet('config/areas',config.areas.filter((_,idx)=>idx!==i));
 }
 
 // ── OKR AREA SELECT ──
 function rebuildOkrAreaSel(cur){
   const el=document.getElementById('okr-f-area');if(!el)return;
-  el.innerHTML='<option value="">— Sin área —</option>'+config.areas.map(a=>`<option value="${esc(a)}"${a===cur?' selected':''}>${esc(a)}</option>`).join('');
+  el.innerHTML='<option value="">— Sin eje —</option>'+config.areas.map(a=>`<option value="${esc(a)}"${a===cur?' selected':''}>${esc(a)}</option>`).join('');
 }
 
 // ── AUTO-FECHA POR TRIMESTRE ──
@@ -1984,7 +1984,7 @@ function renderOkrPage(){
       const secId='okr-area-'+area.replace(/\s+/g,'-');
       html+=`<div class="okr-area-block">
         <div class="okr-area-header" onclick="tgrpOkrArea('${secId}')">
-          <span class="okr-area-icon">🗂</span>
+          <span class="okr-area-icon">🧭</span>
           <span class="okr-area-name">${esc(area)}</span>
           <span class="okr-area-count">${items.length} obj.</span>
           <span class="okr-area-pct">${areaAvgPct}%</span>
@@ -1999,7 +1999,7 @@ function renderOkrPage(){
       html+=`<div class="okr-area-block">
         <div class="okr-area-header" style="background:linear-gradient(135deg,#6c757d 0%,#868e96 100%)" onclick="tgrpOkrArea('${secId}')">
           <span class="okr-area-icon">📌</span>
-          <span class="okr-area-name">Sin área asignada</span>
+          <span class="okr-area-name">Sin eje asignado</span>
           <span class="okr-area-count">${noArea.length} obj.</span>
           <span class="okr-area-arrow" id="oaa_${secId}">▼</span>
         </div>
@@ -2025,7 +2025,7 @@ function renderOkrPage(){
         <div class="okr-hist-dot" style="background:${color}"></div>
         <div class="okr-hist-main">
           <div class="okr-hist-name">${esc(o.title)}</div>
-          <div class="okr-hist-meta">${esc(o.quarter||'')} ${esc(o.year||'')}${o.area?' · 🗂 '+esc(o.area):''}${o.owner?' · 👤 '+esc(o.owner):''}${o.due?' · Cerró '+fmtD(o.due):''}</div>
+          <div class="okr-hist-meta">${esc(o.quarter||'')} ${esc(o.year||'')}${o.area?' · 🧭 '+esc(o.area):''}${o.owner?' · 👤 '+esc(o.owner):''}${o.due?' · Cerró '+fmtD(o.due):''}</div>
         </div>
         <div class="okr-hist-pct" style="color:${color}">${pct}%</div>
         <button class="okr-hist-reopen" onclick="reopenOkr('${o.id}')">↩ Reabrir</button>
@@ -2074,7 +2074,7 @@ function okrCardHTML(o){
         <div class="okr-obj-title">${esc(o.title)}</div>
         <div class="okr-obj-meta">
           <span class="okr-meta-chip">${esc(o.quarter||'—')} ${esc(o.year||'')}</span>
-          ${o.area?`<span class="okr-area-chip">🗂 ${esc(o.area)}</span>`:''}
+          ${o.area?`<span class="okr-area-chip">🧭 ${esc(o.area)}</span>`:''}
           ${o.owner?`<span class="okr-meta-chip owner">👤 ${esc(o.owner)}</span>`:''}
           <span class="okr-meta-chip" style="background:${color}1a;color:${color};border-color:${color}33">${okrStatusLabel(status)}</span>
           ${dueDaysLabel(o.due,o.closed)}
@@ -2112,7 +2112,7 @@ function renderDashOkr(){
     // ── SEMÁFORO TABLE ──
     el.innerHTML=`<table class="okr-semaforo-table">
       <thead><tr>
-        <th>Área</th>
+        <th>Eje Estratégico</th>
         <th>Objetivo</th>
         <th>Trimestre</th>
         <th>Progreso</th>
@@ -2155,7 +2155,7 @@ function renderDashOkr(){
         const areaBarColor=areaAvgPct>=70?'var(--okr-on-track)':areaAvgPct>=40?'var(--okr-at-risk)':'var(--okr-off-track)';
         html+=`<div style="margin-bottom:12px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid var(--navy)">
-            <span style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--navy);flex:1">🗂 ${esc(area)}</span>
+            <span style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--navy);flex:1">🧭 ${esc(area)}</span>
             <span style="font-size:11px;font-weight:700;color:${areaBarColor}">${areaAvgPct}% promedio</span>
           </div>
           ${items.map(o=>{
@@ -2173,7 +2173,7 @@ function renderDashOkr(){
       });
       if(noArea.length){
         html+=`<div style="margin-bottom:12px">
-          <div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--gray);margin-bottom:6px;padding-bottom:4px;border-bottom:1px dashed var(--gray-mid)">📌 Sin área</div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--gray);margin-bottom:6px;padding-bottom:4px;border-bottom:1px dashed var(--gray-mid)">📌 Sin eje</div>
           ${noArea.map(o=>{
             const pct=okrProgress(o);const color=okrStatusColor(okrAutoStatus(o));
             return`<div class="okr-dash-row" onclick="showPage('okr')">
