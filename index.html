@@ -703,6 +703,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
     <!-- OKR PAGE -->
     <div id="page-okr" class="page">
       <div class="main" style="padding-top:0">
+        <div class="okr-view-tabs">
+          <button class="okr-view-tab active" id="okr-vtab-ejes" onclick="setOkrView('ejes')">🧭 Por eje</button>
+          <button class="okr-view-tab" id="okr-vtab-detalle" onclick="setOkrView('detalle')">📋 Detalle OKR</button>
+          <button class="okr-view-tab" id="okr-vtab-semaforo" onclick="setOkrView('semaforo')">🚦 Semáforo</button>
+        </div>
         <div class="okr-toolbar">
           <div class="okr-toolbar-left">
             <select class="okr-quarter-sel" id="okr-quarter-filter">
@@ -945,7 +950,7 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, okrs={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, okrKrDraft=[], okrDashTab='cards';
+let db=null, tasks={}, sprints={}, okrs={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
 
 // ── AUTH ──
 function doLogin(){
@@ -1948,9 +1953,17 @@ function rebuildKrSel(){
   el.innerHTML='<option value="">— Sin KR asociado —</option>'+opts.join('');
 }
 
-// ── OKR RENDER PAGE ──
-function renderOkrPage(){
-  const el=document.getElementById('okr-list');if(!el)return;
+// ── OKR VIEW SWITCHER ──
+function setOkrView(v){
+  okrView=v;
+  document.querySelectorAll('.okr-view-tab').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('okr-vtab-'+v);
+  if(btn)btn.classList.add('active');
+  renderOkrPage();
+}
+
+// ── SHARED: filter + group active OKRs ──
+function getFilteredOkrs(){
   const qf=document.getElementById('okr-quarter-filter')?.value||'';
   const yf=document.getElementById('okr-year-filter')?.value||'';
   const af=document.getElementById('okr-area-filter')?.value||'';
@@ -1960,60 +1973,31 @@ function renderOkrPage(){
   if(qf){active=active.filter(o=>o.quarter===qf);closed=closed.filter(o=>o.quarter===qf);}
   if(yf){active=active.filter(o=>String(o.year||'')===yf);closed=closed.filter(o=>String(o.year||'')===yf);}
   if(af){active=active.filter(o=>o.area===af);closed=closed.filter(o=>o.area===af);}
+  return{active,closed};
+}
 
-  // Group by area
+function groupByEje(active){
   const areas=config.areas.length?config.areas:[];
   const byArea={};
   const noArea=[];
   active.forEach(o=>{
-    if(o.area&&areas.includes(o.area)){
-      if(!byArea[o.area])byArea[o.area]=[];
-      byArea[o.area].push(o);
-    } else {
-      noArea.push(o);
-    }
+    if(o.area&&areas.includes(o.area)){if(!byArea[o.area])byArea[o.area]=[];byArea[o.area].push(o);}
+    else noArea.push(o);
   });
+  return{areas,byArea,noArea};
+}
 
-  let html='';
-  if(areas.length){
-    // Render defined areas that have OKRs
-    areas.forEach(area=>{
-      const items=byArea[area]||[];
-      if(!items.length)return;
-      const areaAvgPct=Math.round(items.reduce((s,o)=>s+okrProgress(o),0)/items.length);
-      const secId='okr-area-'+area.replace(/\s+/g,'-');
-      html+=`<div class="okr-area-block">
-        <div class="okr-area-header" onclick="tgrpOkrArea('${secId}')">
-          <span class="okr-area-icon">🧭</span>
-          <span class="okr-area-name">${esc(area)}</span>
-          <span class="okr-area-count">${items.length} obj.</span>
-          <span class="okr-area-pct">${areaAvgPct}%</span>
-          <span class="okr-area-arrow" id="oaa_${secId}">▼</span>
-        </div>
-        <div class="okr-area-body" id="${secId}">${items.map(okrCardHTML).join('')}</div>
-      </div>`;
-    });
-    // Render OKRs without area
-    if(noArea.length){
-      const secId='okr-area-sinarea';
-      html+=`<div class="okr-area-block">
-        <div class="okr-area-header" style="background:linear-gradient(135deg,#6c757d 0%,#868e96 100%)" onclick="tgrpOkrArea('${secId}')">
-          <span class="okr-area-icon">📌</span>
-          <span class="okr-area-name">Sin eje asignado</span>
-          <span class="okr-area-count">${noArea.length} obj.</span>
-          <span class="okr-area-arrow" id="oaa_${secId}">▼</span>
-        </div>
-        <div class="okr-area-body" id="${secId}">${noArea.map(okrCardHTML).join('')}</div>
-      </div>`;
-    }
-    if(!html) html='<div class="okr-empty"><div class="okr-empty-icon">🎯</div><div class="okr-empty-txt">Sin objetivos activos</div><div class="okr-empty-sub">Crea el primer OKR para este trimestre</div></div>';
-  } else {
-    // No areas configured — flat list
-    html=active.length?active.map(okrCardHTML).join(''):`<div class="okr-empty"><div class="okr-empty-icon">🎯</div><div class="okr-empty-txt">Sin objetivos activos</div><div class="okr-empty-sub">Crea el primer OKR para este trimestre</div></div>`;
-  }
-  el.innerHTML=html;
+// ── OKR RENDER PAGE ──
+function renderOkrPage(){
+  const el=document.getElementById('okr-list');if(!el)return;
+  const {active,closed}=getFilteredOkrs();
+  const EMPTY=`<div class="okr-empty"><div class="okr-empty-icon">🎯</div><div class="okr-empty-txt">Sin objetivos activos</div><div class="okr-empty-sub">Crea el primer OKR para este trimestre</div></div>`;
 
-  // History
+  if(okrView==='ejes') el.innerHTML=renderEjesView(active)||EMPTY;
+  else if(okrView==='detalle') el.innerHTML=renderDetalleView(active)||EMPTY;
+  else el.innerHTML=renderSemaforoPageView(active)||EMPTY;
+
+  // History (all views)
   const sec=document.getElementById('okr-hist-section');
   const hl=document.getElementById('okr-hist-list');
   if(sec&&hl){
@@ -2034,6 +2018,45 @@ function renderOkrPage(){
   }
 }
 
+// ── VIEW 1: POR EJE (collapsible, existing style) ──
+function renderEjesView(active){
+  const {areas,byArea,noArea}=groupByEje(active);
+  let html='';
+  if(areas.length){
+    areas.forEach(area=>{
+      const items=byArea[area]||[];
+      if(!items.length)return;
+      const avgPct=Math.round(items.reduce((s,o)=>s+okrProgress(o),0)/items.length);
+      const secId='okr-area-'+area.replace(/\s+/g,'-');
+      html+=`<div class="okr-area-block">
+        <div class="okr-area-header" onclick="tgrpOkrArea('${secId}')">
+          <span class="okr-area-icon">🧭</span>
+          <span class="okr-area-name">${esc(area)}</span>
+          <span class="okr-area-count">${items.length} obj.</span>
+          <span class="okr-area-pct">${avgPct}%</span>
+          <span class="okr-area-arrow" id="oaa_${secId}">▼</span>
+        </div>
+        <div class="okr-area-body" id="${secId}">${items.map(okrCardHTML).join('')}</div>
+      </div>`;
+    });
+    if(noArea.length){
+      const secId='okr-area-sinarea';
+      html+=`<div class="okr-area-block">
+        <div class="okr-area-header" style="background:linear-gradient(135deg,#6c757d 0%,#868e96 100%)" onclick="tgrpOkrArea('${secId}')">
+          <span class="okr-area-icon">📌</span>
+          <span class="okr-area-name">Sin eje asignado</span>
+          <span class="okr-area-count">${noArea.length} obj.</span>
+          <span class="okr-area-arrow" id="oaa_${secId}">▼</span>
+        </div>
+        <div class="okr-area-body" id="${secId}">${noArea.map(okrCardHTML).join('')}</div>
+      </div>`;
+    }
+  } else {
+    html=active.map(okrCardHTML).join('');
+  }
+  return html;
+}
+
 function tgrpOkrArea(secId){
   const el=document.getElementById(secId);
   const a=document.getElementById('oaa_'+secId);
@@ -2043,6 +2066,156 @@ function tgrpOkrArea(secId){
   if(a)a.innerHTML=h?'▼':'▶';
 }
 
+// ── VIEW 2: DETALLE OKR (two-column: objective left, KRs right) ──
+function renderDetalleView(active){
+  if(!active.length)return '';
+  const {areas,byArea,noArea}=groupByEje(active);
+
+  function krOverdue(krId){
+    const today=new Date();today.setHours(0,0,0,0);
+    return Object.values(tasks).filter(t=>t.kr===krId&&t.status!=='done'&&t.due&&new Date(t.due+'T00:00:00')<today).length;
+  }
+
+  function renderDetailCard(o){
+    const pct=okrProgress(o);
+    const status=okrAutoStatus(o);
+    const color=okrStatusColor(status);
+    const tp=timePct(o);
+    const krs=o.krs||[];
+    const krsHTML=krs.length?krs.map((kr,i)=>{
+      const p=krProgress(kr.id);
+      const barColor=p.pct===100?'var(--okr-done)':p.pct>=60?'var(--okr-on-track)':p.pct>=30?'var(--okr-at-risk)':'var(--okr-off-track)';
+      const ov=krOverdue(kr.id);
+      return`<div class="kr-detail-row">
+        <div class="kr-detail-top">
+          <span class="kr-detail-badge">KR${i+1}</span>
+          <span class="kr-detail-title">${esc(kr.title)}</span>
+          <span class="kr-detail-pct" style="color:${barColor}">${p.pct}%</span>
+        </div>
+        <div class="kr-detail-bar-wrap"><div class="kr-detail-bar-fill" style="width:${p.pct}%;background:${barColor}"></div></div>
+        <div class="kr-detail-foot">
+          ${p.total?`<span class="kr-detail-tasks"><strong>${p.done}</strong> de <strong>${p.total}</strong> tareas completadas</span>`:'<span class="kr-detail-notasks">Sin tareas vinculadas</span>'}
+          ${ov?`<span class="kr-detail-overdue">⚠ ${ov} vencida${ov>1?'s':''}</span>`:''}
+        </div>
+      </div>`;
+    }).join(''):`<div style="font-size:12px;color:var(--gray);padding:12px 0;font-style:italic">Sin Key Results definidos</div>`;
+
+    const timeBar=tp!==null?`
+      <div>
+        <div class="okr-detail-bar-wrap" style="margin-bottom:4px">
+          <div class="okr-detail-bar-time" style="width:${tp}%"></div>
+          <div class="okr-detail-bar-prog" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="okr-detail-bar-legend"><span>⏱ Tiempo: ${tp}%</span><span>📈 Avance: ${pct}%</span></div>
+      </div>`:`
+      <div>
+        <div class="okr-detail-bar-wrap" style="margin-bottom:4px">
+          <div class="okr-detail-bar-prog" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="okr-detail-bar-legend"><span></span><span>📈 Avance: ${pct}%</span></div>
+      </div>`;
+
+    return`<div class="okr-detail-block">
+      <div class="okr-detail-left">
+        ${o.area?`<div class="okr-detail-eje">🧭 ${esc(o.area)}</div>`:''}
+        <div class="okr-detail-title">${esc(o.title)}</div>
+        <div class="okr-detail-meta">
+          <span class="okr-meta-chip">${esc(o.quarter||'—')} ${esc(o.year||'')}</span>
+          ${o.owner?`<span class="okr-meta-chip owner">👤 ${esc(o.owner)}</span>`:''}
+          <span class="okr-meta-chip" style="background:${color}1a;color:${color};border-color:${color}33">${okrStatusLabel(status)}</span>
+          ${dueDaysLabel(o.due,o.closed)}
+        </div>
+        <div class="okr-detail-pct-row">
+          <div>
+            <div class="okr-detail-pct-num" style="color:${color}">${pct}%</div>
+            <div class="okr-detail-pct-label">Progreso general</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:14px;font-weight:700;color:var(--gray)">${krs.length}</div>
+            <div class="okr-detail-pct-label">Key Results</div>
+          </div>
+        </div>
+        ${timeBar}
+        <div class="okr-detail-actions">
+          <button class="btn-okr-action" onclick="openEditOkr('${o.id}')">✏ Editar</button>
+          <button class="btn-okr-action" style="color:var(--navy-light)" onclick="closeOkr('${o.id}')">✓ Cerrar</button>
+        </div>
+      </div>
+      <div class="okr-detail-right">
+        <div class="okr-detail-kr-header">Key Results — trazabilidad de tareas</div>
+        ${krsHTML}
+      </div>
+    </div>`;
+  }
+
+  // Group with eje headers
+  let html='';
+  if(areas.length){
+    areas.forEach(area=>{
+      const items=byArea[area]||[];
+      if(!items.length)return;
+      const avgPct=Math.round(items.reduce((s,o)=>s+okrProgress(o),0)/items.length);
+      const avgColor=avgPct>=70?'var(--okr-on-track)':avgPct>=40?'var(--okr-at-risk)':'var(--okr-off-track)';
+      html+=`<div style="margin-bottom:6px;display:flex;align-items:center;gap:10px;padding:8px 12px;background:linear-gradient(135deg,var(--navy) 0%,var(--navy-mid) 100%);border-radius:10px;">
+        <span style="font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.9);flex:1">🧭 ${esc(area)}</span>
+        <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.7)">${items.length} objetivo${items.length!==1?'s':''}</span>
+        <span style="font-size:14px;font-weight:800;color:#fff">${avgPct}%</span>
+      </div>
+      ${items.map(renderDetailCard).join('')}`;
+    });
+    if(noArea.length){
+      html+=`<div style="margin-bottom:6px;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--gray);padding:6px 2px;border-bottom:1px dashed var(--gray-mid)">📌 Sin eje asignado</div>
+      ${noArea.map(renderDetailCard).join('')}`;
+    }
+  } else {
+    html=active.map(renderDetailCard).join('');
+  }
+  return html;
+}
+
+// ── VIEW 3: SEMÁFORO (full page table) ──
+function renderSemaforoPageView(active){
+  if(!active.length)return '';
+  const rows=active.map(o=>{
+    const pct=okrProgress(o);
+    const status=okrAutoStatus(o);
+    const color=okrStatusColor(status);
+    const label=okrStatusLabel(status);
+    const krs=o.krs||[];
+    const krsDone=krs.filter(kr=>krProgress(kr.id).pct===100).length;
+    const today=new Date();today.setHours(0,0,0,0);
+    const totalOv=Object.values(tasks).filter(t=>krs.some(kr=>t.kr===kr.id)&&t.status!=='done'&&t.due&&new Date(t.due+'T00:00:00')<today).length;
+    return`<tr onclick="setOkrView('detalle');renderOkrPage()">
+      <td><span class="okr-sem-page-eje">${esc(o.area||'—')}</span></td>
+      <td>
+        <div class="okr-sem-page-title">${esc(o.title)}</div>
+        <div class="okr-sem-page-sub">${esc(o.quarter||'')} ${esc(o.year||'')}${o.owner?' · 👤 '+esc(o.owner):''}</div>
+      </td>
+      <td>
+        <span class="okr-sem-bar-wrap"><span class="okr-sem-bar-fill" style="width:${pct}%;background:${color};display:block;height:100%"></span></span>
+        <span style="font-size:13px;font-weight:700;color:${color}">${pct}%</span>
+      </td>
+      <td><span class="okr-sem-chip" style="background:${color}1a;color:${color}">${label}</span></td>
+      <td style="font-size:11px;font-weight:600;color:var(--navy)">${krsDone}/${krs.length}</td>
+      <td>${totalOv?`<span style="color:var(--red);font-size:11px;font-weight:700">⚠ ${totalOv}</span>`:`<span style="color:var(--green);font-size:11px">✓</span>`}</td>
+      <td>${dueDaysLabel(o.due,o.closed)||'<span style="color:var(--gray);font-size:11px">—</span>'}</td>
+    </tr>`;
+  }).join('');
+  return`<table class="okr-sem-page-table">
+    <thead><tr>
+      <th>Eje estratégico</th>
+      <th>Objetivo</th>
+      <th style="width:130px">Progreso</th>
+      <th>Estado</th>
+      <th style="width:60px">KRs ✓</th>
+      <th style="width:70px">Vencidas</th>
+      <th>Fecha límite</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── okrCardHTML (used in Vista Ejes) ──
 function okrCardHTML(o){
   const pct=okrProgress(o);
   const status=okrAutoStatus(o);
