@@ -1570,8 +1570,15 @@ async function resetDailyChecks(){
     updates['dailyTasks/'+id+'/checked']=false;
     updates['dailyTasks/'+id+'/checkedAt']=0;
   });
+  if(!Object.keys(updates).length){badge('ok','Sync');return;}
   badge('wait','Reiniciando...');
-  if(db)await db.ref().update(updates);
+  try{
+    if(db)await db.ref().update(updates);
+    badge('ok','Sync');
+  }catch(e){
+    badge('wait','Error al reiniciar');
+    console.error(e);
+  }
 }
 
 // Daily form
