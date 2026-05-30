@@ -300,6 +300,36 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 .okr-hist-pct{font-size:18px;font-weight:800;}
 .okr-hist-reopen{background:none;border:1px solid var(--gray-light);border-radius:7px;padding:4px 10px;font-size:10px;font-weight:600;color:var(--gray);cursor:pointer;transition:all .15s;white-space:nowrap;}
 .okr-hist-reopen:hover{background:var(--gray-pale);color:var(--navy);}
+/* OKR ÁREA GROUPING */
+.okr-area-block{margin-bottom:24px;}
+.okr-area-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(135deg,var(--navy) 0%,var(--navy-mid) 100%);border-radius:10px 10px 0 0;cursor:pointer;user-select:none;}
+.okr-area-icon{font-size:16px;}
+.okr-area-name{font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.9);flex:1;}
+.okr-area-count{font-size:11px;font-weight:700;background:rgba(255,255,255,.18);color:#fff;padding:2px 9px;border-radius:20px;}
+.okr-area-pct{font-size:14px;font-weight:800;color:#fff;}
+.okr-area-arrow{font-size:12px;color:rgba(255,255,255,.6);}
+.okr-area-body{border:1px solid var(--gray-light);border-top:none;border-radius:0 0 10px 10px;overflow:hidden;}
+.okr-area-body .okr-card{border-radius:0;border-left:none;border-right:none;border-top:none;}
+.okr-area-body .okr-card:last-child{border-bottom:none;}
+/* OKR DASHBOARD TABS */
+.okr-dash-tabs{display:flex;gap:2px;background:var(--gray-pale);border-radius:8px;padding:3px;margin-bottom:14px;}
+.okr-dash-tab{flex:1;padding:5px 8px;border:none;background:transparent;border-radius:6px;font-size:11px;font-weight:700;color:var(--gray);cursor:pointer;transition:all .15s;text-align:center;}
+.okr-dash-tab.active{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(3,43,67,.12);}
+/* OKR SEMÁFORO TABLE */
+.okr-semaforo-table{width:100%;border-collapse:collapse;font-size:12px;}
+.okr-semaforo-table th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--gray);padding:6px 10px;border-bottom:2px solid var(--gray-light);}
+.okr-semaforo-table td{padding:8px 10px;border-bottom:1px solid var(--gray-light);vertical-align:middle;}
+.okr-semaforo-table tr:last-child td{border-bottom:none;}
+.okr-semaforo-table tr:hover td{background:var(--gray-pale);}
+.okr-sem-area{font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--gray);}
+.okr-sem-title{font-size:12px;font-weight:600;color:var(--navy);margin-bottom:1px;}
+.okr-sem-meta{font-size:10px;color:var(--gray);}
+.okr-sem-pct{font-size:14px;font-weight:800;}
+.okr-sem-status{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.okr-sem-bar{width:70px;height:6px;background:var(--gray-light);border-radius:3px;overflow:hidden;display:inline-block;}
+.okr-sem-bar-fill{height:100%;border-radius:3px;transition:width .5s;}
+/* OKR area chip on card */
+.okr-area-chip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(3,43,67,.07);color:var(--navy);border:1px solid rgba(3,43,67,.12);display:inline-flex;align-items:center;gap:3px;}
 .card-sprint-tag{font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(3,43,67,.08);color:var(--navy-mid);}
 
 /* LIST */
@@ -628,6 +658,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
       </div>
       <div class="okr-dash-card" style="margin-bottom:12px">
         <div class="okr-dash-title">🎯 Progreso de Objetivos (OKRs)</div>
+        <div class="okr-dash-tabs">
+          <button class="okr-dash-tab active" id="okr-dash-tab-cards" onclick="setOkrDashTab('cards')">📊 Por área</button>
+          <button class="okr-dash-tab" id="okr-dash-tab-sem" onclick="setOkrDashTab('sem')">🚦 Semáforo</button>
+        </div>
         <div id="dash-okr-list"></div>
       </div>
     </div>
@@ -684,6 +718,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
               <option value="2026">2026</option>
               <option value="2027">2027</option>
             </select>
+            <select class="okr-quarter-sel" id="okr-area-filter">
+              <option value="">Todas las áreas</option>
+            </select>
           </div>
           <button class="btn-add-okr" id="btn-new-okr">＋ Nuevo Objetivo</button>
         </div>
@@ -709,10 +746,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="form-group full"><label class="form-label">Objetivo *</label><input class="form-input" id="okr-f-title" placeholder="¿Qué queremos lograr?" maxlength="160"></div>
         <div class="form-group full"><label class="form-label">Descripción</label><textarea class="form-textarea" id="okr-f-desc" placeholder="Contexto y propósito del objetivo..." rows="2"></textarea></div>
         <div class="form-group"><label class="form-label">Responsable</label><select class="form-select" id="okr-f-owner"><option value="">— Sin asignar —</option></select></div>
+        <div class="form-group"><label class="form-label">Área</label><select class="form-select" id="okr-f-area"><option value="">— Sin área —</option></select></div>
         <div class="form-group"><label class="form-label">Trimestre</label><select class="form-select" id="okr-f-quarter"><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></select></div>
         <div class="form-group"><label class="form-label">Año</label><select class="form-select" id="okr-f-year"><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option></select></div>
         <div class="form-group"><label class="form-label">Fecha inicio</label><input class="form-input" type="date" id="okr-f-start"></div>
-        <div class="form-group"><label class="form-label">Fecha límite</label><input class="form-input" type="date" id="okr-f-due"></div>
+        <div class="form-group"><label class="form-label">Fecha límite <span style="font-size:9px;color:var(--navy-light);font-weight:600">(auto por trimestre)</span></label><input class="form-input" type="date" id="okr-f-due"></div>
       </div>
       <div style="margin-top:14px">
         <div class="config-section-title" style="margin-bottom:10px">📌 Key Results</div>
@@ -753,6 +791,15 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="config-add-row">
           <input class="form-input" id="cfg-tag-input" placeholder="Ej: Contratos, Infra, Civil..." maxlength="40">
           <button class="btn-save" id="cfg-tag-add">＋ Agregar</button>
+        </div>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">🗂 Áreas del equipo (OKRs)</div>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;line-height:1.5">Los OKRs se agruparán y se reportarán por área.</div>
+        <div class="config-list" id="cfg-area-list"></div>
+        <div class="config-add-row">
+          <input class="form-input" id="cfg-area-input" placeholder="Ej: Infraestructura, Tecnología, Administración..." maxlength="50">
+          <button class="btn-save" id="cfg-area-add">＋ Agregar</button>
         </div>
       </div>
     </div>
@@ -898,7 +945,7 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, okrs={}, config={assignees:[],tags:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, okrKrDraft=[];
+let db=null, tasks={}, sprints={}, okrs={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, okrKrDraft=[], okrDashTab='cards';
 
 // ── AUTH ──
 function doLogin(){
@@ -922,7 +969,7 @@ async function initFB(){
     db=firebase.database();
     badge('ok','Conectado');
     db.ref('tasks').on('value',s=>{tasks=s.val()||{};rebuildFilters();refresh();badge('ok','Sync');});
-    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[]};rebuildConfigSelects();});
+    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[],areas:d.areas||[]};rebuildConfigSelects();});
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();renderSprintModal();refresh();badge('ok','Sync');});
     db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();badge('ok','Sync');});
     db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();renderDashDaily();badge('ok','Sync');});
@@ -968,6 +1015,10 @@ function rebuildConfigSelects(){
   if(fA){const cv=fA.value;fA.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${esc(n)}</option>`).join('');}
   const fT=document.getElementById('f-tag');
   if(fT){const cv=fT.value;fT.innerHTML='<option value="">— Sin etiqueta —</option>'+config.tags.map(t=>`<option value="${esc(t)}"${t===cv?' selected':''}>${esc(t)}</option>`).join('');}
+  // OKR area selects
+  const oaf=document.getElementById('okr-area-filter');
+  if(oaf){const cv=oaf.value;oaf.innerHTML='<option value="">Todas las áreas</option>'+config.areas.map(a=>`<option value="${esc(a)}"${a===cv?' selected':''}>${esc(a)}</option>`).join('');}
+  rebuildOkrAreaSel();
   rebuildFilters();
   renderConfigLists();
   rebuildKrSel();
@@ -981,6 +1032,10 @@ function renderConfigLists(){
   if(tl){tl.innerHTML=config.tags.length
     ?config.tags.map((t,i)=>`<div class="config-item"><span class="config-item-text">${esc(t)}</span><button class="config-item-del" onclick="delTag(${i})">✕</button></div>`).join('')
     :'<div class="config-empty">Sin etiquetas definidas aún</div>';}
+  const ael=document.getElementById('cfg-area-list');
+  if(ael){ael.innerHTML=config.areas.length
+    ?config.areas.map((a,i)=>`<div class="config-item"><span class="config-item-text">🗂 ${esc(a)}</span><button class="config-item-del" onclick="delArea(${i})">✕</button></div>`).join('')
+    :'<div class="config-empty">Sin áreas definidas — los OKRs aparecerán sin agrupar</div>';}
 }
 function rebuildSprintSel(){
   const fsp=document.getElementById('filter-sprint');if(!fsp)return;
@@ -1752,6 +1807,8 @@ document.getElementById('cfg-assignee-add').onclick=addAssignee;
 document.getElementById('cfg-assignee-input').onkeydown=e=>{if(e.key==='Enter')addAssignee();};
 document.getElementById('cfg-tag-add').onclick=addTag;
 document.getElementById('cfg-tag-input').onkeydown=e=>{if(e.key==='Enter')addTag();};
+document.getElementById('cfg-area-add').onclick=addArea;
+document.getElementById('cfg-area-input').onkeydown=e=>{if(e.key==='Enter')addArea();};
 
 async function addAssignee(){
   const inp=document.getElementById('cfg-assignee-input');
@@ -1774,6 +1831,42 @@ async function addTag(){
 async function delTag(i){
   if(!confirm('¿Eliminar esta etiqueta?'))return;
   await fbSet('config/tags',config.tags.filter((_,idx)=>idx!==i));
+}
+async function addArea(){
+  const inp=document.getElementById('cfg-area-input');
+  const v=inp.value.trim();if(!v)return;
+  if(config.areas.includes(v)){inp.select();return;}
+  await fbSet('config/areas',[...config.areas,v].sort());
+  inp.value='';inp.focus();
+}
+async function delArea(i){
+  if(!confirm('¿Eliminar esta área?\n(Los OKRs vinculados quedarán sin área)'))return;
+  await fbSet('config/areas',config.areas.filter((_,idx)=>idx!==i));
+}
+
+// ── OKR AREA SELECT ──
+function rebuildOkrAreaSel(cur){
+  const el=document.getElementById('okr-f-area');if(!el)return;
+  el.innerHTML='<option value="">— Sin área —</option>'+config.areas.map(a=>`<option value="${esc(a)}"${a===cur?' selected':''}>${esc(a)}</option>`).join('');
+}
+
+// ── AUTO-FECHA POR TRIMESTRE ──
+function quarterDueDate(q,year){
+  const map={Q1:`${year}-03-31`,Q2:`${year}-06-30`,Q3:`${year}-09-30`,Q4:`${year}-12-31`};
+  return map[q]||'';
+}
+function quarterStartDate(q,year){
+  const map={Q1:`${year}-01-01`,Q2:`${year}-04-01`,Q3:`${year}-07-01`,Q4:`${year}-10-01`};
+  return map[q]||'';
+}
+function applyQuarterDates(){
+  const q=document.getElementById('okr-f-quarter')?.value;
+  const y=document.getElementById('okr-f-year')?.value;
+  if(!q||!y)return;
+  const dueEl=document.getElementById('okr-f-due');
+  const startEl=document.getElementById('okr-f-start');
+  if(dueEl&&!dueEl.dataset.userEdited) dueEl.value=quarterDueDate(q,y);
+  if(startEl&&!startEl.dataset.userEdited) startEl.value=quarterStartDate(q,y);
 }
 
 // ── OKR HELPERS ──
@@ -1853,12 +1946,66 @@ function renderOkrPage(){
   const el=document.getElementById('okr-list');if(!el)return;
   const qf=document.getElementById('okr-quarter-filter')?.value||'';
   const yf=document.getElementById('okr-year-filter')?.value||'';
+  const af=document.getElementById('okr-area-filter')?.value||'';
   let all=Object.values(okrs).sort((a,b)=>(String(a.year||''))+(a.quarter||'')>(String(b.year||''))+(b.quarter||'')?1:-1);
   let active=all.filter(o=>!o.closed);
   let closed=all.filter(o=>o.closed);
   if(qf){active=active.filter(o=>o.quarter===qf);closed=closed.filter(o=>o.quarter===qf);}
   if(yf){active=active.filter(o=>String(o.year||'')===yf);closed=closed.filter(o=>String(o.year||'')===yf);}
-  el.innerHTML=active.length?active.map(okrCardHTML).join(''):`<div class="okr-empty"><div class="okr-empty-icon">🎯</div><div class="okr-empty-txt">Sin objetivos activos</div><div class="okr-empty-sub">Crea el primer OKR para este trimestre</div></div>`;
+  if(af){active=active.filter(o=>o.area===af);closed=closed.filter(o=>o.area===af);}
+
+  // Group by area
+  const areas=config.areas.length?config.areas:[];
+  const byArea={};
+  const noArea=[];
+  active.forEach(o=>{
+    if(o.area&&areas.includes(o.area)){
+      if(!byArea[o.area])byArea[o.area]=[];
+      byArea[o.area].push(o);
+    } else {
+      noArea.push(o);
+    }
+  });
+
+  let html='';
+  if(areas.length){
+    // Render defined areas that have OKRs
+    areas.forEach(area=>{
+      const items=byArea[area]||[];
+      if(!items.length)return;
+      const areaAvgPct=Math.round(items.reduce((s,o)=>s+okrProgress(o),0)/items.length);
+      const secId='okr-area-'+area.replace(/\s+/g,'-');
+      html+=`<div class="okr-area-block">
+        <div class="okr-area-header" onclick="tgrpOkrArea('${secId}')">
+          <span class="okr-area-icon">🗂</span>
+          <span class="okr-area-name">${esc(area)}</span>
+          <span class="okr-area-count">${items.length} obj.</span>
+          <span class="okr-area-pct">${areaAvgPct}%</span>
+          <span class="okr-area-arrow" id="oaa_${secId}">▼</span>
+        </div>
+        <div class="okr-area-body" id="${secId}">${items.map(okrCardHTML).join('')}</div>
+      </div>`;
+    });
+    // Render OKRs without area
+    if(noArea.length){
+      const secId='okr-area-sinarea';
+      html+=`<div class="okr-area-block">
+        <div class="okr-area-header" style="background:linear-gradient(135deg,#6c757d 0%,#868e96 100%)" onclick="tgrpOkrArea('${secId}')">
+          <span class="okr-area-icon">📌</span>
+          <span class="okr-area-name">Sin área asignada</span>
+          <span class="okr-area-count">${noArea.length} obj.</span>
+          <span class="okr-area-arrow" id="oaa_${secId}">▼</span>
+        </div>
+        <div class="okr-area-body" id="${secId}">${noArea.map(okrCardHTML).join('')}</div>
+      </div>`;
+    }
+    if(!html) html='<div class="okr-empty"><div class="okr-empty-icon">🎯</div><div class="okr-empty-txt">Sin objetivos activos</div><div class="okr-empty-sub">Crea el primer OKR para este trimestre</div></div>';
+  } else {
+    // No areas configured — flat list
+    html=active.length?active.map(okrCardHTML).join(''):`<div class="okr-empty"><div class="okr-empty-icon">🎯</div><div class="okr-empty-txt">Sin objetivos activos</div><div class="okr-empty-sub">Crea el primer OKR para este trimestre</div></div>`;
+  }
+  el.innerHTML=html;
+
   // History
   const sec=document.getElementById('okr-hist-section');
   const hl=document.getElementById('okr-hist-list');
@@ -1871,13 +2018,22 @@ function renderOkrPage(){
         <div class="okr-hist-dot" style="background:${color}"></div>
         <div class="okr-hist-main">
           <div class="okr-hist-name">${esc(o.title)}</div>
-          <div class="okr-hist-meta">${esc(o.quarter||'')} ${esc(o.year||'')}${o.owner?' · 👤 '+esc(o.owner):''}${o.due?' · Cerró '+fmtD(o.due):''}</div>
+          <div class="okr-hist-meta">${esc(o.quarter||'')} ${esc(o.year||'')}${o.area?' · 🗂 '+esc(o.area):''}${o.owner?' · 👤 '+esc(o.owner):''}${o.due?' · Cerró '+fmtD(o.due):''}</div>
         </div>
         <div class="okr-hist-pct" style="color:${color}">${pct}%</div>
         <button class="okr-hist-reopen" onclick="reopenOkr('${o.id}')">↩ Reabrir</button>
       </div>`;
     }).join('');
   }
+}
+
+function tgrpOkrArea(secId){
+  const el=document.getElementById(secId);
+  const a=document.getElementById('oaa_'+secId);
+  if(!el)return;
+  const h=el.style.display==='none';
+  el.style.display=h?'':'none';
+  if(a)a.innerHTML=h?'▼':'▶';
 }
 
 function okrCardHTML(o){
@@ -1911,6 +2067,7 @@ function okrCardHTML(o){
         <div class="okr-obj-title">${esc(o.title)}</div>
         <div class="okr-obj-meta">
           <span class="okr-meta-chip">${esc(o.quarter||'—')} ${esc(o.year||'')}</span>
+          ${o.area?`<span class="okr-area-chip">🗂 ${esc(o.area)}</span>`:''}
           ${o.owner?`<span class="okr-meta-chip owner">👤 ${esc(o.owner)}</span>`:''}
           <span class="okr-meta-chip" style="background:${color}1a;color:${color};border-color:${color}33">${okrStatusLabel(status)}</span>
           ${dueDaysLabel(o.due,o.closed)}
@@ -1931,21 +2088,109 @@ function okrCardHTML(o){
 }
 
 // ── OKR DASHBOARD WIDGET ──
+function setOkrDashTab(tab){
+  okrDashTab=tab;
+  document.querySelectorAll('.okr-dash-tab').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('okr-dash-tab-'+tab);
+  if(btn)btn.classList.add('active');
+  renderDashOkr();
+}
+
 function renderDashOkr(){
   const el=document.getElementById('dash-okr-list');if(!el)return;
   const list=Object.values(okrs).filter(o=>!o.closed).sort((a,b)=>(String(a.year||''))+(a.quarter||'')>(String(b.year||''))+(b.quarter||'')?1:-1);
   if(!list.length){el.innerHTML='<div style="font-size:12px;color:var(--gray);text-align:center;padding:10px;font-style:italic">Sin objetivos activos. Ve a la pestaña OKRs para crear el primero.</div>';return;}
-  el.innerHTML=list.map(o=>{
-    const pct=okrProgress(o);
-    const status=okrAutoStatus(o);
-    const color=okrStatusColor(status);
-    return`<div class="okr-dash-row" onclick="showPage('okr')">
-      <div class="okr-dash-dot" style="background:${color}"></div>
-      <div class="okr-dash-obj" title="${esc(o.title)}">${esc(o.quarter||'')} ${esc(o.year||'')} · ${esc(o.title)}</div>
-      <div class="okr-dash-bar"><div class="okr-dash-bar-fill" style="width:${pct}%;background:${color}"></div></div>
-      <div class="okr-dash-pct" style="color:${color}">${pct}%</div>
-    </div>`;
-  }).join('');
+
+  if(okrDashTab==='sem'){
+    // ── SEMÁFORO TABLE ──
+    el.innerHTML=`<table class="okr-semaforo-table">
+      <thead><tr>
+        <th>Área</th>
+        <th>Objetivo</th>
+        <th>Trimestre</th>
+        <th>Progreso</th>
+        <th>Estado</th>
+        <th>Fecha límite</th>
+      </tr></thead>
+      <tbody>${list.map(o=>{
+        const pct=okrProgress(o);
+        const status=okrAutoStatus(o);
+        const color=okrStatusColor(status);
+        const label=okrStatusLabel(status);
+        return`<tr style="cursor:pointer" onclick="showPage('okr')">
+          <td><span class="okr-sem-area">${esc(o.area||'—')}</span></td>
+          <td><div class="okr-sem-title">${esc(o.title)}</div><div class="okr-sem-meta">${esc(o.quarter||'')} ${esc(o.year||'')}${o.owner?' · 👤 '+esc(o.owner):''}</div></td>
+          <td style="font-size:11px;font-weight:700;color:var(--navy);white-space:nowrap">${esc(o.quarter||'')} ${esc(o.year||'')}</td>
+          <td><div style="display:flex;align-items:center;gap:6px">
+            <span class="okr-sem-bar"><span class="okr-sem-bar-fill" style="width:${pct}%;background:${color};display:block"></span></span>
+            <span class="okr-sem-pct" style="color:${color}">${pct}%</span>
+          </div></td>
+          <td><span class="okr-sem-status" style="background:${color}1a;color:${color}">● ${label}</span></td>
+          <td>${dueDaysLabel(o.due,o.closed)||'<span style="color:var(--gray);font-size:11px">—</span>'}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  } else {
+    // ── TARJETAS POR ÁREA ──
+    const areas=config.areas.length?config.areas:[];
+    let html='';
+    if(areas.length){
+      const byArea={};
+      const noArea=[];
+      list.forEach(o=>{
+        if(o.area&&areas.includes(o.area)){if(!byArea[o.area])byArea[o.area]=[];byArea[o.area].push(o);}
+        else noArea.push(o);
+      });
+      areas.forEach(area=>{
+        const items=byArea[area]||[];
+        if(!items.length)return;
+        const areaAvgPct=Math.round(items.reduce((s,o)=>s+okrProgress(o),0)/items.length);
+        const areaBarColor=areaAvgPct>=70?'var(--okr-on-track)':areaAvgPct>=40?'var(--okr-at-risk)':'var(--okr-off-track)';
+        html+=`<div style="margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid var(--navy)">
+            <span style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--navy);flex:1">🗂 ${esc(area)}</span>
+            <span style="font-size:11px;font-weight:700;color:${areaBarColor}">${areaAvgPct}% promedio</span>
+          </div>
+          ${items.map(o=>{
+            const pct=okrProgress(o);
+            const status=okrAutoStatus(o);
+            const color=okrStatusColor(status);
+            return`<div class="okr-dash-row" onclick="showPage('okr')" style="padding-left:10px">
+              <div class="okr-dash-dot" style="background:${color}"></div>
+              <div class="okr-dash-obj" title="${esc(o.title)}">${esc(o.quarter||'')} ${esc(o.year||'')} · ${esc(o.title)}</div>
+              <div class="okr-dash-bar"><div class="okr-dash-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+              <div class="okr-dash-pct" style="color:${color}">${pct}%</div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      });
+      if(noArea.length){
+        html+=`<div style="margin-bottom:12px">
+          <div style="font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--gray);margin-bottom:6px;padding-bottom:4px;border-bottom:1px dashed var(--gray-mid)">📌 Sin área</div>
+          ${noArea.map(o=>{
+            const pct=okrProgress(o);const color=okrStatusColor(okrAutoStatus(o));
+            return`<div class="okr-dash-row" onclick="showPage('okr')">
+              <div class="okr-dash-dot" style="background:${color}"></div>
+              <div class="okr-dash-obj" title="${esc(o.title)}">${esc(o.quarter||'')} ${esc(o.year||'')} · ${esc(o.title)}</div>
+              <div class="okr-dash-bar"><div class="okr-dash-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+              <div class="okr-dash-pct" style="color:${color}">${pct}%</div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      }
+    } else {
+      html=list.map(o=>{
+        const pct=okrProgress(o);const color=okrStatusColor(okrAutoStatus(o));
+        return`<div class="okr-dash-row" onclick="showPage('okr')">
+          <div class="okr-dash-dot" style="background:${color}"></div>
+          <div class="okr-dash-obj" title="${esc(o.title)}">${esc(o.quarter||'')} ${esc(o.year||'')} · ${esc(o.title)}</div>
+          <div class="okr-dash-bar"><div class="okr-dash-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+          <div class="okr-dash-pct" style="color:${color}">${pct}%</div>
+        </div>`;
+      }).join('');
+    }
+    el.innerHTML=html;
+  }
 }
 
 // ── OKR MODAL ──
@@ -1959,6 +2204,14 @@ document.getElementById('kr-form-add').onclick=addKrDraft;
 document.getElementById('kr-form-input').onkeydown=e=>{if(e.key==='Enter')addKrDraft();};
 document.getElementById('okr-quarter-filter').onchange=renderOkrPage;
 document.getElementById('okr-year-filter').onchange=renderOkrPage;
+document.getElementById('okr-area-filter').onchange=renderOkrPage;
+
+// Auto-fecha: cuando cambia trimestre o año en el modal
+document.getElementById('okr-f-quarter').onchange=applyQuarterDates;
+document.getElementById('okr-f-year').onchange=applyQuarterDates;
+// Marcar fecha como editada manualmente
+document.getElementById('okr-f-due').oninput=function(){this.dataset.userEdited='1';};
+document.getElementById('okr-f-start').oninput=function(){this.dataset.userEdited='1';};
 
 function rebuildOkrOwnerSel(cur){
   const el=document.getElementById('okr-f-owner');if(!el)return;
@@ -1986,9 +2239,14 @@ function openNewOkr(){
   document.getElementById('okr-f-desc').value='';
   document.getElementById('okr-f-quarter').value='Q2';
   document.getElementById('okr-f-year').value=new Date().getFullYear();
-  document.getElementById('okr-f-start').value='';
-  document.getElementById('okr-f-due').value='';
+  // Clear user-edited flags so auto-date fires
+  const dueEl=document.getElementById('okr-f-due');
+  const startEl=document.getElementById('okr-f-start');
+  if(dueEl){delete dueEl.dataset.userEdited;dueEl.value='';}
+  if(startEl){delete startEl.dataset.userEdited;startEl.value='';}
   rebuildOkrOwnerSel('');
+  rebuildOkrAreaSel('');
+  applyQuarterDates();
   renderKrDraftList();
   document.getElementById('btn-delete-okr').classList.add('hidden');
   openModal('modal-okr');
@@ -2001,9 +2259,13 @@ function openEditOkr(id){
   document.getElementById('okr-f-desc').value=o.desc||'';
   document.getElementById('okr-f-quarter').value=o.quarter||'Q1';
   document.getElementById('okr-f-year').value=o.year||new Date().getFullYear();
-  document.getElementById('okr-f-start').value=o.start||'';
-  document.getElementById('okr-f-due').value=o.due||'';
+  const dueEl=document.getElementById('okr-f-due');
+  const startEl=document.getElementById('okr-f-start');
+  // Mark as user-edited so auto-date doesn't override existing values
+  if(dueEl){dueEl.value=o.due||'';if(o.due)dueEl.dataset.userEdited='1';else delete dueEl.dataset.userEdited;}
+  if(startEl){startEl.value=o.start||'';if(o.start)startEl.dataset.userEdited='1';else delete startEl.dataset.userEdited;}
   rebuildOkrOwnerSel(o.owner||'');
+  rebuildOkrAreaSel(o.area||'');
   renderKrDraftList();
   document.getElementById('btn-delete-okr').classList.remove('hidden');
   openModal('modal-okr');
@@ -2014,7 +2276,7 @@ async function saveOkr(){
   if(!okrKrDraft.length){alert('Agrega al menos un Key Result.');return;}
   const id=editOkrId||genId();
   const ex=editOkrId?(okrs[editOkrId]||{}):{};
-  const o={id,title,desc:document.getElementById('okr-f-desc').value.trim(),owner:document.getElementById('okr-f-owner').value,quarter:document.getElementById('okr-f-quarter').value,year:parseInt(document.getElementById('okr-f-year').value)||new Date().getFullYear(),start:document.getElementById('okr-f-start').value||null,due:document.getElementById('okr-f-due').value||null,krs:okrKrDraft,closed:ex.closed||false,createdAt:ex.createdAt||Date.now(),updatedAt:Date.now()};
+  const o={id,title,desc:document.getElementById('okr-f-desc').value.trim(),owner:document.getElementById('okr-f-owner').value,area:document.getElementById('okr-f-area').value||null,quarter:document.getElementById('okr-f-quarter').value,year:parseInt(document.getElementById('okr-f-year').value)||new Date().getFullYear(),start:document.getElementById('okr-f-start').value||null,due:document.getElementById('okr-f-due').value||null,krs:okrKrDraft,closed:ex.closed||false,createdAt:ex.createdAt||Date.now(),updatedAt:Date.now()};
   closeModal('modal-okr');badge('wait','Guardando OKR...');
   try{await fbSet('okrs/'+id,o);badge('ok','Sync');}catch(e){badge('wait','Error al guardar');console.error(e);}
 }
