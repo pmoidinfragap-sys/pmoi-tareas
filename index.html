@@ -640,6 +640,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
       <button class="nav-btn" id="nav-board">Tablero</button>
       <button class="nav-btn" id="nav-daily">📋 Rutinas</button>
       <button class="nav-btn" id="nav-okr">🎯 OKRs</button>
+      <button class="nav-btn" id="nav-sprintlog">📦 Sprints</button>
     </div>
   </div>
 
@@ -742,6 +743,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
           <div class="okr-hist-title">📦 Objetivos cerrados</div>
           <div class="okr-hist-list" id="okr-hist-list"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- SPRINT HISTORY PAGE -->
+    <div id="page-sprintlog" class="page">
+      <div class="main" style="padding-top:0">
+        <div class="toolbar" style="gap:12px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:700;color:var(--navy)">📦 Historial de Sprints</span>
+          <div style="flex:1"></div>
+          <select class="filter-select" id="sl-filter-person"><option value="">Todas las personas</option></select>
+        </div>
+        <div id="sprintlog-content"></div>
       </div>
     </div>
   </div>
@@ -958,7 +971,7 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, okrs={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
+let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
 
 // ── AUTH ──
 function doLogin(){
@@ -986,6 +999,7 @@ async function initFB(){
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();renderSprintModal();refresh();badge('ok','Sync');});
     db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();badge('ok','Sync');});
     db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();renderDashDaily();badge('ok','Sync');});
+    db.ref('sprintHistory').on('value',s=>{sprintHistory=s.val()||{};renderSprintLog();});
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
@@ -1070,6 +1084,7 @@ document.getElementById('nav-dashboard').onclick=()=>showPage('dashboard');
 document.getElementById('nav-board').onclick=()=>showPage('board');
 document.getElementById('nav-daily').onclick=()=>showPage('daily');
 document.getElementById('nav-okr').onclick=()=>showPage('okr');
+document.getElementById('nav-sprintlog').onclick=()=>{showPage('sprintlog');renderSprintLog();};
 function refresh(){renderDash();renderBoard();renderDailyPage();renderOkrPage();}
 
 // ── SPRINT BANNER ──
@@ -1781,17 +1796,296 @@ async function activateSprint(id){
   await db.ref().update(updates);
 }
 
-// Cierra (desactiva) un sprint — funciona tanto si está por flag como por fecha
+// Cierra (desactiva) un sprint con todas las acciones de cierre
 async function closeSprint(id){
-  if(!confirm('¿Cerrar este sprint?'))return;
-  badge('wait','Cerrando...');
-  await fbSet('sprints/'+id+'/active',false);
+  const sp=sprints[id];
+  if(!sp)return;
+  const allTasks=Object.values(tasks);
+  const sprintTasks=allTasks.filter(t=>t.sprint===id);
+  const doneTasks=sprintTasks.filter(t=>t.status==='done');
+  const pendingTasks=sprintTasks.filter(t=>t.status!=='done');
+
+  // Calcular completadas por persona
+  const byPerson={};
+  doneTasks.forEach(t=>{
+    const p=t.assignee||'Sin asignar';
+    if(!byPerson[p])byPerson[p]={done:0,titles:[]};
+    byPerson[p].done++;
+    byPerson[p].titles.push(t.title||'');
+  });
+
+  // Buscar siguiente sprint (futuro más próximo)
+  const todayMs_=todayMs();
+  const nextSprint=Object.values(sprints)
+    .filter(s=>s.id!==id&&!s.closed&&!(s.active===true||s.active==='true'))
+    .filter(s=>s.start&&new Date(s.start+'T00:00:00').getTime()>=todayMs_)
+    .sort((a,b)=>new Date(a.start+'T00:00:00')-new Date(b.start+'T00:00:00'))[0]||null;
+
+  // Armar mensaje de confirmación
+  const lines=[
+    `Sprint: ${sp.name}`,
+    `✅ Tareas completadas: ${doneTasks.length} de ${sprintTasks.length}`,
+    pendingTasks.length?`⚠ Tareas pendientes que se moverán: ${pendingTasks.length}`:'',
+    nextSprint?`➡ Siguiente sprint: ${nextSprint.name}`:'⚠ No hay sprint siguiente disponible',
+    '',
+    '¿Confirmas el cierre del sprint?'
+  ].filter(l=>l!==undefined);
+  if(!confirm(lines.join('
+')))return;
+
+  badge('wait','Cerrando sprint...');
+  const updates={};
+
+  // 1) Cerrar sprint actual
+  updates['sprints/'+id+'/active']=false;
+  updates['sprints/'+id+'/closed']=true;
+  updates['sprints/'+id+'/closedAt']=Date.now();
+
+  // 2) Guardar snapshot de historial
+  const snapshot={
+    sprintId:id,
+    sprintName:sp.name,
+    sprintStart:sp.start||'',
+    sprintEnd:sp.end||'',
+    closedAt:Date.now(),
+    totalTasks:sprintTasks.length,
+    doneTasks:doneTasks.length,
+    pendingTasks:pendingTasks.length,
+    completionPct:sprintTasks.length?Math.round(doneTasks.length/sprintTasks.length*100):0,
+    byPerson,
+    doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||''})),
+    pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||''}))
+  };
+  updates['sprintHistory/'+id]=snapshot;
+
+  // 3) Mover tareas pendientes al siguiente sprint (o quitar sprint si no hay siguiente)
+  if(pendingTasks.length){
+    pendingTasks.forEach(t=>{
+      updates['tasks/'+t.id+'/sprint']=nextSprint?nextSprint.id:'';
+      updates['tasks/'+t.id+'/movedFromSprint']=id;
+      updates['tasks/'+t.id+'/updatedAt']=Date.now();
+    });
+  }
+
+  // 4) Activar siguiente sprint si existe
+  if(nextSprint){
+    // Desactivar todos primero
+    Object.values(sprints).forEach(s=>{updates['sprints/'+s.id+'/active']=false;});
+    updates['sprints/'+nextSprint.id+'/active']=true;
+  }
+
+  await db.ref().update(updates);
+
+  // Mostrar modal de resumen
+  showSprintCloseReport(snapshot, nextSprint);
+}
+
+function showSprintCloseReport(snap, nextSprint){
+  // Crear o reutilizar modal de reporte
+  let overlay=document.getElementById('modal-sprint-report');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='modal-sprint-report';
+    overlay.className='modal-overlay';
+    overlay.style.zIndex='1100';
+    document.body.appendChild(overlay);
+    overlay.onclick=e=>{if(e.target===overlay)overlay.classList.remove('open');};
+  }
+
+  const byPersonRows=Object.entries(snap.byPerson)
+    .sort((a,b)=>b[1].done-a[1].done)
+    .map(([p,d])=>`<tr>
+      <td style="padding:7px 10px;font-size:12px;font-weight:600;color:var(--text)">${esc(p)}</td>
+      <td style="padding:7px 10px;text-align:center;font-size:13px;font-weight:700;color:var(--green)">${d.done}</td>
+      <td style="padding:7px 10px;font-size:11px;color:var(--gray);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(d.titles.join(', '))}">${esc(d.titles.join(', '))}</td>
+    </tr>`).join('');
+
+  const pendHTML=snap.pendingTasksList.length
+    ?`<div style="margin-top:14px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--orange);margin-bottom:6px">⚠ Pendientes movidas (${snap.pendingTasks})</div>
+        ${snap.pendingTasksList.map(t=>`<div style="font-size:11px;padding:5px 8px;background:rgba(251,133,0,.08);border-radius:6px;margin-bottom:4px;display:flex;justify-content:space-between">
+          <span>${esc(t.title)}</span><span style="color:var(--gray);white-space:nowrap;margin-left:8px">${esc(t.assignee)}</span>
+        </div>`).join('')}
+        <div style="font-size:10px;color:var(--gray);margin-top:4px">
+          ${nextSprint?`Movidas a: <strong>${esc(nextSprint.name)}</strong>`:'Sin sprint siguiente — quedan sin sprint asignado'}
+        </div>
+      </div>`:'';
+
+  const barColor=snap.completionPct>=80?'var(--green)':snap.completionPct>=50?'var(--orange)':'var(--red)';
+  const nextHTML=nextSprint
+    ?`<div style="margin-top:12px;padding:10px 12px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:8px;font-size:12px;color:var(--green);font-weight:600">✅ Sprint siguiente activado: ${esc(nextSprint.name)}</div>`
+    :`<div style="margin-top:12px;padding:10px 12px;background:rgba(251,133,0,.1);border:1px solid rgba(251,133,0,.3);border-radius:8px;font-size:12px;color:var(--orange);font-weight:600">⚠ No hay sprint siguiente — crea uno en Gestión de Sprints</div>`;
+
+  overlay.innerHTML=`<div class="modal" style="max-width:540px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <span class="modal-title">📋 Resumen de cierre — ${esc(snap.sprintName)}</span>
+      <button class="modal-close" onclick="document.getElementById('modal-sprint-report').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:100px;text-align:center;padding:12px;background:var(--gray-pale);border-radius:10px">
+          <div style="font-size:22px;font-weight:800;color:var(--green)">${snap.doneTasks}</div>
+          <div style="font-size:10px;font-weight:600;color:var(--gray);text-transform:uppercase">Completadas</div>
+        </div>
+        <div style="flex:1;min-width:100px;text-align:center;padding:12px;background:var(--gray-pale);border-radius:10px">
+          <div style="font-size:22px;font-weight:800;color:var(--orange)">${snap.pendingTasks}</div>
+          <div style="font-size:10px;font-weight:600;color:var(--gray);text-transform:uppercase">Pendientes</div>
+        </div>
+        <div style="flex:1;min-width:100px;text-align:center;padding:12px;background:var(--gray-pale);border-radius:10px">
+          <div style="font-size:22px;font-weight:800;color:${barColor}">${snap.completionPct}%</div>
+          <div style="font-size:10px;font-weight:600;color:var(--gray);text-transform:uppercase">Completado</div>
+        </div>
+      </div>
+      <div style="height:8px;background:var(--gray-light);border-radius:4px;margin-bottom:16px;overflow:hidden">
+        <div style="width:${snap.completionPct}%;height:100%;background:${barColor};border-radius:4px;transition:width .6s"></div>
+      </div>
+      ${byPersonRows?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--navy);margin-bottom:8px">✅ Completadas por persona</div>
+      <table style="width:100%;border-collapse:collapse;background:var(--gray-pale);border-radius:10px;overflow:hidden;margin-bottom:4px">
+        <thead><tr style="background:var(--navy)">
+          <th style="padding:7px 10px;font-size:11px;font-weight:700;color:#fff;text-align:left">Persona</th>
+          <th style="padding:7px 10px;font-size:11px;font-weight:700;color:#fff;text-align:center">Done</th>
+          <th style="padding:7px 10px;font-size:11px;font-weight:700;color:#fff;text-align:left">Tareas</th>
+        </tr></thead>
+        <tbody>${byPersonRows}</tbody>
+      </table>`:'<div style="font-size:12px;color:var(--gray);padding:8px 0">Sin tareas completadas en este sprint.</div>'}
+      ${pendHTML}
+      ${nextHTML}
+      <div style="text-align:right;margin-top:16px">
+        <button class="btn-save" onclick="document.getElementById('modal-sprint-report').classList.remove('open')">Cerrar</button>
+      </div>
+    </div>
+  </div>`;
+  overlay.classList.add('open');
 }
 
 async function deleteSprint(id){
   if(!confirm('¿Eliminar este sprint?\n(Las tareas vinculadas no se borran)'))return;
   badge('wait','Eliminando...');
   await fbDel('sprints/'+id);
+}
+
+// ── SPRINT LOG PAGE ──────────────────────────────────────────────────────────
+function renderSprintLog(){
+  const container=document.getElementById('sprintlog-content');
+  const personSel=document.getElementById('sl-filter-person');
+  if(!container)return;
+
+  const history=Object.values(sprintHistory).sort((a,b)=>b.closedAt-a.closedAt);
+
+  // Rebuild person filter
+  const allPersons=new Set();
+  history.forEach(h=>Object.keys(h.byPerson||{}).forEach(p=>allPersons.add(p)));
+  const selPerson=personSel?personSel.value:'';
+  if(personSel){
+    personSel.innerHTML='<option value="">Todas las personas</option>'+
+      [...allPersons].sort().map(p=>`<option value="${esc(p)}"${p===selPerson?' selected':''}>${esc(p)}</option>`).join('');
+  }
+
+  if(!history.length){
+    container.innerHTML='<div class="empty-state" style="margin-top:40px"><div class="empty-icon">📦</div><div>Sin sprints cerrados aún.<br>El historial aparecerá aquí al cerrar tu primer sprint.</div></div>';
+    return;
+  }
+
+  // Resumen global
+  const totalDone=history.reduce((a,h)=>a+(h.doneTasks||0),0);
+  const totalAll=history.reduce((a,h)=>a+(h.totalTasks||0),0);
+  const avgPct=history.length?Math.round(history.reduce((a,h)=>a+(h.completionPct||0),0)/history.length):0;
+  const globalByPerson={};
+  history.forEach(h=>{
+    Object.entries(h.byPerson||{}).forEach(([p,d])=>{
+      if(!globalByPerson[p])globalByPerson[p]={done:0,sprints:0};
+      globalByPerson[p].done+=d.done||0;
+      globalByPerson[p].sprints++;
+    });
+  });
+
+  const personRows=Object.entries(globalByPerson)
+    .sort((a,b)=>b[1].done-a[1].done)
+    .map(([p,d])=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">
+      <div style="width:120px;font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p)}</div>
+      <div style="flex:1;height:8px;background:var(--gray-light);border-radius:4px;overflow:hidden">
+        <div style="width:${totalDone?Math.round(d.done/totalDone*100):0}%;height:100%;background:var(--navy-light);border-radius:4px"></div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--navy);width:32px;text-align:right">${d.done}</div>
+      <div style="font-size:10px;color:var(--gray);width:52px;white-space:nowrap">${d.sprints} sprint${d.sprints!==1?'s':''}</div>
+    </div>`).join('');
+
+  const summaryHTML=`<div class="dash-row" style="margin-bottom:18px;gap:14px;flex-wrap:wrap">
+    <div class="dash-card" style="flex:2;min-width:240px">
+      <div class="section-title" style="margin-bottom:12px">📊 Resumen global</div>
+      <div style="display:flex;gap:14px;margin-bottom:16px">
+        <div style="flex:1;text-align:center;padding:10px;background:var(--gray-pale);border-radius:8px">
+          <div style="font-size:20px;font-weight:800;color:var(--green)">${totalDone}</div>
+          <div style="font-size:10px;color:var(--gray);font-weight:600;text-transform:uppercase">Total completadas</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:10px;background:var(--gray-pale);border-radius:8px">
+          <div style="font-size:20px;font-weight:800;color:var(--navy)">${history.length}</div>
+          <div style="font-size:10px;color:var(--gray);font-weight:600;text-transform:uppercase">Sprints cerrados</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:10px;background:var(--gray-pale);border-radius:8px">
+          <div style="font-size:20px;font-weight:800;color:${avgPct>=80?'var(--green)':avgPct>=50?'var(--orange)':'var(--red)'}">${avgPct}%</div>
+          <div style="font-size:10px;color:var(--gray);font-weight:600;text-transform:uppercase">% promedio</div>
+        </div>
+      </div>
+      <div class="section-title" style="font-size:10px;margin-bottom:8px">Por persona (acumulado)</div>
+      ${personRows||'<div style="font-size:12px;color:var(--gray)">Sin datos por persona</div>'}
+    </div>
+  </div>`;
+
+  // Lista de sprints cerrados
+  const filteredHistory=selPerson
+    ?history.filter(h=>h.byPerson&&h.byPerson[selPerson])
+    :history;
+
+  const sprintCards=filteredHistory.map(h=>{
+    const barColor=h.completionPct>=80?'var(--green)':h.completionPct>=50?'var(--orange)':'var(--red)';
+    const closedFmt=h.closedAt?new Date(h.closedAt).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+
+    // Filas por persona (filtradas si hay selección)
+    const personData=selPerson
+      ?Object.entries(h.byPerson||{}).filter(([p])=>p===selPerson)
+      :Object.entries(h.byPerson||{}).sort((a,b)=>b[1].done-a[1].done);
+
+    const personTable=personData.length?`
+      <table style="width:100%;border-collapse:collapse;margin-top:10px;background:var(--gray-pale);border-radius:8px;overflow:hidden">
+        <thead><tr style="background:var(--navy)">
+          <th style="padding:5px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left">Persona</th>
+          <th style="padding:5px 8px;font-size:10px;font-weight:700;color:#fff;text-align:center">✅</th>
+          <th style="padding:5px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left">Tareas completadas</th>
+        </tr></thead>
+        <tbody>${personData.map(([p,d])=>`<tr>
+          <td style="padding:5px 8px;font-size:11px;font-weight:600">${esc(p)}</td>
+          <td style="padding:5px 8px;font-size:12px;font-weight:700;color:var(--green);text-align:center">${d.done}</td>
+          <td style="padding:5px 8px;font-size:10px;color:var(--gray);max-width:240px" title="${esc((d.titles||[]).join(', '))}">${esc((d.titles||[]).join(', '))}</td>
+        </tr>`).join('')}</tbody>
+      </table>`:'';
+
+    const pendingBadge=h.pendingTasks
+      ?`<span style="padding:2px 8px;background:rgba(251,133,0,.15);color:var(--orange);border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">${h.pendingTasks} movidas</span>`:'';
+
+    return`<div class="dash-card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:14px;font-weight:700;color:var(--navy)">${esc(h.sprintName)}</div>
+          <div style="font-size:11px;color:var(--gray);margin-top:2px">${fmtD(h.sprintStart)} → ${fmtD(h.sprintEnd)}</div>
+          <div style="font-size:10px;color:var(--gray-mid);margin-top:2px">Cerrado: ${closedFmt}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          ${pendingBadge}
+          <span style="padding:2px 10px;background:rgba(16,185,129,.15);color:var(--green);border-radius:12px;font-size:11px;font-weight:700">${h.doneTasks}/${h.totalTasks} ✓</span>
+          <span style="padding:2px 10px;background:${barColor}22;color:${barColor};border-radius:12px;font-size:11px;font-weight:700">${h.completionPct}%</span>
+        </div>
+      </div>
+      <div style="height:6px;background:var(--gray-light);border-radius:3px;margin-bottom:10px;overflow:hidden">
+        <div style="width:${h.completionPct}%;height:100%;background:${barColor};border-radius:3px"></div>
+      </div>
+      ${personTable}
+    </div>`;
+  }).join('');
+
+  container.innerHTML=summaryHTML+
+    `<div class="section-title" style="margin-bottom:10px">🗂 Detalle por sprint ${selPerson?`— ${esc(selPerson)}`:''}</div>`+
+    (sprintCards||'<div class="empty-state"><div class="empty-icon">🔍</div>Sin resultados para este filtro</div>');
 }
 
 // Repara sprints: pone active:false en todos, luego activa el que coincide con hoy
@@ -2416,6 +2710,7 @@ document.getElementById('kr-form-input').onkeydown=e=>{if(e.key==='Enter')addKrD
 document.getElementById('okr-quarter-filter').onchange=()=>{renderOkrPage();updateClearOkrBtn();};
 document.getElementById('okr-year-filter').onchange=()=>{renderOkrPage();updateClearOkrBtn();};
 document.getElementById('okr-area-filter').onchange=()=>{renderOkrPage();updateClearOkrBtn();};
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='sl-filter-person')renderSprintLog();});
 
 function updateClearOkrBtn(){
   const hasFilter=['okr-quarter-filter','okr-year-filter','okr-area-filter'].some(id=>document.getElementById(id)?.value);
