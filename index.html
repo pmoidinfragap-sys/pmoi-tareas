@@ -161,6 +161,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 .toolbar-sep{width:1px;height:24px;background:var(--gray-light);}
 .filter-select,.search-input{padding:5px 10px;border:1px solid var(--gray-light);border-radius:8px;font-size:12px;color:var(--text);background:#fff;outline:none;transition:border-color .2s;}
 .filter-select:focus,.search-input:focus{border-color:var(--navy-light);}
+.btn-clear-filters{display:none;padding:5px 11px;border:1px solid var(--danger,#e53e3e);border-radius:8px;font-size:11px;font-weight:600;color:var(--danger,#e53e3e);background:#fff;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s;}
+.btn-clear-filters:hover{background:var(--danger,#e53e3e);color:#fff;}
+.btn-clear-filters.visible{display:inline-flex;align-items:center;gap:4px;}
 .search-input{min-width:130px;}
 .task-counter{margin-left:auto;background:var(--gray-pale);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--gray);white-space:nowrap;}
 .task-counter span{font-weight:700;color:var(--navy);}
@@ -679,6 +682,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <select class="filter-select" id="filter-assignee"><option value="">Todos los responsables</option></select>
         <select class="filter-select" id="filter-sprint"><option value="">Todos los sprints</option></select>
         <input class="search-input" id="search-input" placeholder="Buscar tarea...">
+        <button class="btn-clear-filters" id="btn-clear-tasks" onclick="clearTaskFilters()" title="Limpiar todos los filtros">✕ Limpiar</button>
         <div class="task-counter" id="task-counter"><span>0</span> tareas</div>
       </div>
       <div id="view-kanban"></div>
@@ -693,6 +697,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
           <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px">
             <select class="filter-select" id="daily-filter-assignee"><option value="">Todos los responsables</option></select>
             <input class="search-input" id="daily-search" placeholder="Buscar rutina...">
+            <button class="btn-clear-filters" id="btn-clear-daily" onclick="clearDailyFilters()" title="Limpiar filtros">✕ Limpiar</button>
           </div>
           <button class="btn-new" id="btn-new-daily">＋ Nueva rutina</button>
         </div>
@@ -727,7 +732,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
               <option value="">Todos los ejes</option>
             </select>
           </div>
-          <button class="btn-add-okr" id="btn-new-okr">＋ Nuevo Objetivo</button>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="btn-clear-filters" id="btn-clear-okrs" onclick="clearOkrFilters()" title="Limpiar filtros OKR">✕ Limpiar</button>
+            <button class="btn-add-okr" id="btn-new-okr">＋ Nuevo Objetivo</button>
+          </div>
         </div>
         <div id="okr-list"></div>
         <div class="okr-hist-section" id="okr-hist-section" style="display:none">
@@ -1314,9 +1322,21 @@ function getFiltered(){
   });
 }
 ['filter-status','filter-priority','filter-assignee','filter-sprint'].forEach(id=>{
-  const el=document.getElementById(id);if(el)el.onchange=()=>renderBoard();
+  const el=document.getElementById(id);if(el)el.onchange=()=>{renderBoard();updateClearTaskBtn();};
 });
-document.getElementById('search-input').oninput=()=>renderBoard();
+document.getElementById('search-input').oninput=()=>{renderBoard();updateClearTaskBtn();};
+
+function updateClearTaskBtn(){
+  const hasFilter=['filter-status','filter-priority','filter-assignee','filter-sprint'].some(id=>document.getElementById(id)?.value)||
+    document.getElementById('search-input')?.value;
+  document.getElementById('btn-clear-tasks')?.classList.toggle('visible',!!hasFilter);
+}
+function clearTaskFilters(){
+  ['filter-status','filter-priority','filter-assignee','filter-sprint'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const si=document.getElementById('search-input');if(si)si.value='';
+  document.getElementById('btn-clear-tasks')?.classList.remove('visible');
+  renderBoard();
+}
 document.getElementById('btn-kanban').onclick=()=>{curView='kanban';document.getElementById('btn-kanban').classList.add('active');document.getElementById('btn-list').classList.remove('active');document.getElementById('view-kanban').classList.remove('hidden');document.getElementById('view-list').classList.add('hidden');renderBoard();};
 document.getElementById('btn-list').onclick=()=>{curView='list';document.getElementById('btn-list').classList.add('active');document.getElementById('btn-kanban').classList.remove('active');document.getElementById('view-list').classList.remove('hidden');document.getElementById('view-kanban').classList.add('hidden');renderBoard();};
 
@@ -1593,8 +1613,19 @@ document.getElementById('cancel-daily').onclick=()=>closeModal('modal-daily-form
 document.getElementById('save-daily').onclick=saveDaily;
 document.getElementById('btn-delete-daily').onclick=deleteDaily;
 document.getElementById('modal-daily-form').onclick=e=>{if(e.target===e.currentTarget)closeModal('modal-daily-form');};
-document.getElementById('daily-filter-assignee').onchange=()=>renderDailyPage();
-document.getElementById('daily-search').oninput=()=>renderDailyPage();
+document.getElementById('daily-filter-assignee').onchange=()=>{renderDailyPage();updateClearDailyBtn();};
+document.getElementById('daily-search').oninput=()=>{renderDailyPage();updateClearDailyBtn();};
+
+function updateClearDailyBtn(){
+  const hasFilter=document.getElementById('daily-filter-assignee')?.value||document.getElementById('daily-search')?.value;
+  document.getElementById('btn-clear-daily')?.classList.toggle('visible',!!hasFilter);
+}
+function clearDailyFilters(){
+  const fa=document.getElementById('daily-filter-assignee');if(fa)fa.value='';
+  const ds=document.getElementById('daily-search');if(ds)ds.value='';
+  document.getElementById('btn-clear-daily')?.classList.remove('visible');
+  renderDailyPage();
+}
 
 function openNewDaily(){
   editDailyId=null;
@@ -2382,9 +2413,19 @@ document.getElementById('save-okr').onclick=saveOkr;
 document.getElementById('btn-delete-okr').onclick=deleteOkr;
 document.getElementById('kr-form-add').onclick=addKrDraft;
 document.getElementById('kr-form-input').onkeydown=e=>{if(e.key==='Enter')addKrDraft();};
-document.getElementById('okr-quarter-filter').onchange=renderOkrPage;
-document.getElementById('okr-year-filter').onchange=renderOkrPage;
-document.getElementById('okr-area-filter').onchange=renderOkrPage;
+document.getElementById('okr-quarter-filter').onchange=()=>{renderOkrPage();updateClearOkrBtn();};
+document.getElementById('okr-year-filter').onchange=()=>{renderOkrPage();updateClearOkrBtn();};
+document.getElementById('okr-area-filter').onchange=()=>{renderOkrPage();updateClearOkrBtn();};
+
+function updateClearOkrBtn(){
+  const hasFilter=['okr-quarter-filter','okr-year-filter','okr-area-filter'].some(id=>document.getElementById(id)?.value);
+  document.getElementById('btn-clear-okrs')?.classList.toggle('visible',!!hasFilter);
+}
+function clearOkrFilters(){
+  ['okr-quarter-filter','okr-year-filter','okr-area-filter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('btn-clear-okrs')?.classList.remove('visible');
+  renderOkrPage();
+}
 
 // Auto-fecha: cuando cambia trimestre o año en el modal
 document.getElementById('okr-f-quarter').onchange=applyQuarterDates;
