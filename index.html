@@ -1800,7 +1800,9 @@ async function activateSprint(id){
 async function closeSprint(id){
   const sp=sprints[id];
   if(!sp)return;
-  const allTasks=Object.values(tasks);
+
+  // Usar la clave del objeto (Firebase key) como ID real de la tarea
+  const allTasks=Object.entries(tasks).map(([k,v])=>({...v, id:k}));
   const sprintTasks=allTasks.filter(t=>t.sprint===id);
   const doneTasks=sprintTasks.filter(t=>t.status==='done');
   const pendingTasks=sprintTasks.filter(t=>t.status!=='done');
@@ -1816,20 +1818,21 @@ async function closeSprint(id){
 
   // Buscar siguiente sprint (futuro más próximo)
   const todayMs_=todayMs();
-  const nextSprint=Object.values(sprints)
+  const nextSprint=Object.entries(sprints)
+    .map(([k,v])=>({...v,id:k}))
     .filter(s=>s.id!==id&&!s.closed&&!(s.active===true||s.active==='true'))
     .filter(s=>s.start&&new Date(s.start+'T00:00:00').getTime()>=todayMs_)
     .sort((a,b)=>new Date(a.start+'T00:00:00')-new Date(b.start+'T00:00:00'))[0]||null;
 
   // Armar mensaje de confirmación
   const lines=[
-    `Sprint: ${sp.name}`,
-    `✅ Tareas completadas: ${doneTasks.length} de ${sprintTasks.length}`,
-    pendingTasks.length?`⚠ Tareas pendientes que se moverán: ${pendingTasks.length}`:'',
-    nextSprint?`➡ Siguiente sprint: ${nextSprint.name}`:'⚠ No hay sprint siguiente disponible',
+    'Sprint: '+sp.name,
+    '\u2705 Tareas completadas: '+doneTasks.length+' de '+sprintTasks.length,
+    pendingTasks.length?('\u26a0 Pendientes que se moverán: '+pendingTasks.length):'',
+    nextSprint?('\u27a1 Siguiente sprint: '+nextSprint.name):'\u26a0 No hay sprint siguiente',
     '',
-    '¿Confirmas el cierre del sprint?'
-  ].filter(l=>l!==undefined);
+    '\u00bfConfirmas el cierre del sprint?'
+  ].filter(Boolean);
   if(!confirm(lines.join('\n')))return;
 
   badge('wait','Cerrando sprint...');
@@ -1840,7 +1843,7 @@ async function closeSprint(id){
   updates['sprints/'+id+'/closed']=true;
   updates['sprints/'+id+'/closedAt']=Date.now();
 
-  // 2) Guardar snapshot de historial
+  // 2) Snapshot de historial (separado del update principal para evitar fallo por permisos)
   const snapshot={
     sprintId:id,
     sprintName:sp.name,
@@ -1855,27 +1858,38 @@ async function closeSprint(id){
     doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||''})),
     pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||''}))
   };
-  updates['sprintHistory/'+id]=snapshot;
 
-  // 3) Mover tareas pendientes al siguiente sprint (o quitar sprint si no hay siguiente)
-  if(pendingTasks.length){
-    pendingTasks.forEach(t=>{
-      updates['tasks/'+t.id+'/sprint']=nextSprint?nextSprint.id:'';
-      updates['tasks/'+t.id+'/movedFromSprint']=id;
-      updates['tasks/'+t.id+'/updatedAt']=Date.now();
-    });
-  }
+  // 3) Mover tareas pendientes al siguiente sprint
+  pendingTasks.forEach(t=>{
+    if(!t.id)return;
+    updates['tasks/'+t.id+'/sprint']=nextSprint?nextSprint.id:null;
+    updates['tasks/'+t.id+'/movedFromSprint']=id;
+    updates['tasks/'+t.id+'/updatedAt']=Date.now();
+  });
 
   // 4) Activar siguiente sprint si existe
   if(nextSprint){
-    // Desactivar todos primero
-    Object.values(sprints).forEach(s=>{updates['sprints/'+s.id+'/active']=false;});
+    Object.entries(sprints).forEach(([k])=>{updates['sprints/'+k+'/active']=false;});
     updates['sprints/'+nextSprint.id+'/active']=true;
   }
 
-  await db.ref().update(updates);
+  try{
+    await db.ref().update(updates);
+    badge('ok','Sprint cerrado');
+  }catch(e){
+    console.error('Error al cerrar sprint (update principal):', e);
+    badge('wait','Error al cerrar: '+e.message);
+    alert('Error al guardar en Firebase: '+e.message);
+    return;
+  }
 
-  // Mostrar modal de resumen
+  // Guardar historial por separado (nodo independiente)
+  try{
+    await db.ref('sprintHistory/'+id).set(snapshot);
+  }catch(e){
+    console.warn('Historial no guardado (permisos?):', e.message);
+  }
+
   showSprintCloseReport(snapshot, nextSprint);
 }
 
