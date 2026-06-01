@@ -2081,16 +2081,39 @@ function renderSprintLog(){
     });
   });
 
-  const personRows=Object.entries(globalByPerson)
-    .sort((a,b)=>b[1].done-a[1].done)
-    .map(([p,d])=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">
-      <div style="width:120px;font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p)}</div>
+  // Pendientes acumuladas por persona (para el resumen global)
+  const globalPendingByPerson={};
+  history.forEach(h=>{
+    (h.pendingTasksList||[]).forEach(t=>{
+      const p=t.assignee||'Sin asignar';
+      if(!globalPendingByPerson[p])globalPendingByPerson[p]=0;
+      globalPendingByPerson[p]++;
+    });
+  });
+  // Unir todos los miembros conocidos
+  const allGlobalTeam=new Set([...config.assignees,...Object.keys(globalByPerson),...Object.keys(globalPendingByPerson)]);
+
+  const personRows=[...allGlobalTeam].sort((a,b)=>{
+    const da=(globalByPerson[a]?.done||0); const db_=(globalByPerson[b]?.done||0);
+    return db_-da;
+  }).map(p=>{
+    const d=globalByPerson[p]||{done:0,sprints:0};
+    const pend=globalPendingByPerson[p]||0;
+    const total=d.done+pend;
+    const pct=total?Math.round(d.done/total*100):null;
+    const barColor=pct===null?'var(--gray-light)':pct>=80?'var(--green)':pct>=50?'var(--orange)':'var(--red)';
+    const pendBadge=pend?`<span style="font-size:9px;font-weight:700;color:var(--orange);margin-left:4px">${pend}⏳</span>`:'';
+    const noBadge=(!d.done&&!pend)?`<span style="font-size:9px;color:var(--gray);margin-left:4px">sin tareas</span>`:'';
+    return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+      <div style="width:110px;font-size:12px;font-weight:600;color:${d.done?'var(--text)':'var(--gray-mid)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p)}</div>
       <div style="flex:1;height:8px;background:var(--gray-light);border-radius:4px;overflow:hidden">
-        <div style="width:${totalDone?Math.round(d.done/totalDone*100):0}%;height:100%;background:var(--navy-light);border-radius:4px"></div>
+        <div style="width:${pct||0}%;height:100%;background:${barColor};border-radius:4px"></div>
       </div>
-      <div style="font-size:12px;font-weight:700;color:var(--navy);width:32px;text-align:right">${d.done}</div>
-      <div style="font-size:10px;color:var(--gray);width:52px;white-space:nowrap">${d.sprints} sprint${d.sprints!==1?'s':''}</div>
-    </div>`).join('');
+      <div style="font-size:12px;font-weight:700;color:${d.done?'var(--navy)':'var(--gray)'};width:24px;text-align:right">${d.done}</div>
+      ${pendBadge}${noBadge}
+      <div style="font-size:10px;color:var(--gray);width:48px;white-space:nowrap">${d.sprints?d.sprints+' sprint'+(d.sprints!==1?'s':''):''}</div>
+    </div>`;
+  }).join('');
 
   const summaryHTML=`<div class="dash-row" style="margin-bottom:18px;gap:14px;flex-wrap:wrap">
     <div class="dash-card" style="flex:2;min-width:240px">
@@ -2123,24 +2146,77 @@ function renderSprintLog(){
     const barColor=h.completionPct>=80?'var(--green)':h.completionPct>=50?'var(--orange)':'var(--red)';
     const closedFmt=h.closedAt?new Date(h.closedAt).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
 
-    // Filas por persona (filtradas si hay selección)
-    const personData=selPerson
-      ?Object.entries(h.byPerson||{}).filter(([p])=>p===selPerson)
-      :Object.entries(h.byPerson||{}).sort((a,b)=>b[1].done-a[1].done);
+    // ── Tabla completa por persona ──────────────────────────────────────────
+    // Personas que completaron tareas (del snapshot byPerson)
+    const completedByPerson=h.byPerson||{};
 
-    const personTable=personData.length?`
-      <table style="width:100%;border-collapse:collapse;margin-top:10px;background:var(--gray-pale);border-radius:8px;overflow:hidden">
+    // Personas con tareas pendientes (del snapshot pendingTasksList)
+    const pendingByPerson={};
+    (h.pendingTasksList||[]).forEach(t=>{
+      const p=t.assignee||'Sin asignar';
+      if(!pendingByPerson[p])pendingByPerson[p]=[];
+      pendingByPerson[p].push(t.title||'');
+    });
+
+    // Todos los assignees del equipo (config) + quienes aparecen en el sprint
+    const allTeam=new Set([
+      ...config.assignees,
+      ...Object.keys(completedByPerson),
+      ...Object.keys(pendingByPerson)
+    ]);
+
+    // Filtrar si hay selección de persona
+    const teamList=selPerson?[selPerson]:[...allTeam].sort();
+
+    const personRows=teamList.map(p=>{
+      const done=completedByPerson[p];
+      const pending=pendingByPerson[p];
+      const hasDone=!!done;
+      const hasPending=!!pending;
+
+      if(hasDone&&hasPending){
+        // Completó algo pero también dejó pendientes
+        const pct=Math.round(done.done/(done.done+pending.length)*100);
+        return`<tr style="background:rgba(251,133,0,.04)">
+          <td style="padding:6px 8px;font-size:11px;font-weight:700;color:var(--text)">${esc(p)}</td>
+          <td style="padding:6px 8px;text-align:center"><span style="font-size:11px;font-weight:700;color:var(--orange)">${done.done}✓ / ${pending.length}⏳</span></td>
+          <td style="padding:6px 8px;font-size:10px;color:var(--gray)" title="${esc(done.titles.join(', '))}">✅ ${esc(done.titles.join(', '))}</td>
+          <td style="padding:6px 8px;font-size:10px;color:var(--orange)" title="${esc(pending.join(', '))}">⏳ ${esc(pending.join(', '))}</td>
+        </tr>`;
+      } else if(hasDone){
+        // Solo completó, sin pendientes
+        return`<tr>
+          <td style="padding:6px 8px;font-size:11px;font-weight:700;color:var(--text)">${esc(p)}</td>
+          <td style="padding:6px 8px;text-align:center"><span style="font-size:12px;font-weight:800;color:var(--green)">${done.done} ✓</span></td>
+          <td style="padding:6px 8px;font-size:10px;color:var(--gray)" colspan="2" title="${esc(done.titles.join(', '))}">${esc(done.titles.join(', '))}</td>
+        </tr>`;
+      } else if(hasPending){
+        // Solo pendientes, nada completado
+        return`<tr style="background:rgba(231,76,60,.04)">
+          <td style="padding:6px 8px;font-size:11px;font-weight:700;color:var(--red)">${esc(p)}</td>
+          <td style="padding:6px 8px;text-align:center"><span style="font-size:11px;font-weight:700;color:var(--red)">0✓ / ${pending.length}⏳</span></td>
+          <td style="padding:6px 8px;font-size:10px;color:var(--orange)" colspan="2" title="${esc(pending.join(', '))}">${esc(pending.join(', '))}</td>
+        </tr>`;
+      } else {
+        // Miembro del equipo sin ninguna tarea asignada en este sprint
+        return`<tr style="background:rgba(0,0,0,.02)">
+          <td style="padding:6px 8px;font-size:11px;font-weight:600;color:var(--gray-mid)">${esc(p)}</td>
+          <td style="padding:6px 8px;text-align:center"><span style="font-size:10px;color:var(--gray)">— sin tareas</span></td>
+          <td style="padding:6px 8px;font-size:10px;color:var(--gray)" colspan="2">Sin tareas asignadas en este sprint</td>
+        </tr>`;
+      }
+    }).join('');
+
+    const personTable=`
+      <table style="width:100%;border-collapse:collapse;margin-top:10px;border-radius:8px;overflow:hidden;border:1px solid var(--gray-light)">
         <thead><tr style="background:var(--navy)">
-          <th style="padding:5px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left">Persona</th>
-          <th style="padding:5px 8px;font-size:10px;font-weight:700;color:#fff;text-align:center">✅</th>
-          <th style="padding:5px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left">Tareas completadas</th>
+          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left;width:22%">Persona</th>
+          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:center;width:14%">Resultado</th>
+          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left">✅ Completadas</th>
+          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left">⏳ Pendientes</th>
         </tr></thead>
-        <tbody>${personData.map(([p,d])=>`<tr>
-          <td style="padding:5px 8px;font-size:11px;font-weight:600">${esc(p)}</td>
-          <td style="padding:5px 8px;font-size:12px;font-weight:700;color:var(--green);text-align:center">${d.done}</td>
-          <td style="padding:5px 8px;font-size:10px;color:var(--gray);max-width:240px" title="${esc((d.titles||[]).join(', '))}">${esc((d.titles||[]).join(', '))}</td>
-        </tr>`).join('')}</tbody>
-      </table>`:'';
+        <tbody>${personRows}</tbody>
+      </table>`;
 
     const pendingBadge=h.pendingTasks
       ?`<span style="padding:2px 8px;background:rgba(251,133,0,.15);color:var(--orange);border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">${h.pendingTasks} movidas</span>`:'';
