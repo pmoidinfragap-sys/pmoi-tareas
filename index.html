@@ -1830,8 +1830,7 @@ async function closeSprint(id){
     '',
     '¿Confirmas el cierre del sprint?'
   ].filter(l=>l!==undefined);
-  if(!confirm(lines.join('
-')))return;
+  if(!confirm(lines.join('\n')))return;
 
   badge('wait','Cerrando sprint...');
   const updates={};
