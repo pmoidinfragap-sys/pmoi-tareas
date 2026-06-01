@@ -753,6 +753,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
           <span style="font-size:13px;font-weight:700;color:var(--navy)">📦 Historial de Sprints</span>
           <div style="flex:1"></div>
           <select class="filter-select" id="sl-filter-person"><option value="">Todas las personas</option></select>
+          <button class="btn-sprint btn-sprint-new" style="font-size:11px;padding:5px 12px" onclick="rebuildSprintHistory()" title="Reconstruir historial desde sprints cerrados">↺ Reconstruir</button>
         </div>
         <div id="sprintlog-content"></div>
       </div>
@@ -1976,6 +1977,71 @@ async function deleteSprint(id){
 }
 
 // ── SPRINT LOG PAGE ──────────────────────────────────────────────────────────
+// Reconstruye sprintHistory desde los sprints con closed:true y las tareas existentes
+async function rebuildSprintHistory(){
+  if(!db){alert('Sin conexión a Firebase');return;}
+  const closedSprints=Object.entries(sprints)
+    .map(([k,v])=>({...v,id:k}))
+    .filter(s=>s.closed===true||(s.active===false&&s.closedAt));
+  if(!closedSprints.length){alert('No se encontraron sprints cerrados para reconstruir.');return;}
+
+  badge('wait','Reconstruyendo historial...');
+  const allTasks=Object.entries(tasks).map(([k,v])=>({...v,id:k}));
+  const updates={};
+
+  closedSprints.forEach(sp=>{
+    // Si ya tiene historial guardado, no sobreescribir
+    if(sprintHistory[sp.id])return;
+
+    const sprintTasks=allTasks.filter(t=>t.sprint===sp.id||t.movedFromSprint===sp.id);
+    // Las completadas son las que tienen status done Y están en este sprint (o estaban antes de moverse)
+    const doneTasks=allTasks.filter(t=>t.sprint===sp.id&&t.status==='done');
+    const pendingTasks=allTasks.filter(t=>t.movedFromSprint===sp.id&&t.status!=='done');
+    const allSprintTasks=[...doneTasks,...pendingTasks];
+
+    const byPerson={};
+    doneTasks.forEach(t=>{
+      const p=t.assignee||'Sin asignar';
+      if(!byPerson[p])byPerson[p]={done:0,titles:[]};
+      byPerson[p].done++;
+      byPerson[p].titles.push(t.title||'');
+    });
+
+    const total=allSprintTasks.length;
+    const snapshot={
+      sprintId:sp.id,
+      sprintName:sp.name||sp.id,
+      sprintStart:sp.start||'',
+      sprintEnd:sp.end||'',
+      closedAt:sp.closedAt||Date.now(),
+      totalTasks:total,
+      doneTasks:doneTasks.length,
+      pendingTasks:pendingTasks.length,
+      completionPct:total?Math.round(doneTasks.length/total*100):0,
+      byPerson,
+      doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||''})),
+      pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||''})),
+      rebuilt:true
+    };
+    updates['sprintHistory/'+sp.id]=snapshot;
+  });
+
+  if(!Object.keys(updates).length){
+    badge('ok','Sync');
+    alert('Todos los sprints cerrados ya tienen historial guardado.');
+    return;
+  }
+
+  try{
+    await db.ref().update(updates);
+    badge('ok','Historial reconstruido');
+    alert('Historial reconstruido: '+Object.keys(updates).length+' sprint(s) procesado(s).\n\nNota: actualiza también las reglas de Firebase para incluir sprintHistory.');
+  }catch(e){
+    badge('wait','Error');
+    alert('Error al guardar historial: '+e.message+'\n\nRevisa las reglas de Firebase — falta permiso para sprintHistory.');
+  }
+}
+
 function renderSprintLog(){
   const container=document.getElementById('sprintlog-content');
   const personSel=document.getElementById('sl-filter-person');
@@ -1993,8 +2059,12 @@ function renderSprintLog(){
   }
 
   if(!history.length){
-    const dbStatus=db?'Conectado':'Sin conexión';
-    container.innerHTML='<div class="empty-state" style="margin-top:40px"><div class="empty-icon">📦</div><div>Sin sprints cerrados aún.<br>El historial aparecerá aquí al cerrar tu primer sprint.</div><div style="font-size:10px;color:var(--gray);margin-top:8px">DB: '+dbStatus+' · Registros: '+Object.keys(sprintHistory).length+'</div></div>';
+    // Detectar si hay sprints cerrados en Firebase que no tienen historial aún
+    const closedSprints=Object.values(sprints).filter(s=>s.closed===true||s.active===false&&s.closedAt);
+    const hint=closedSprints.length
+      ?'<div style="margin-top:12px"><button class="btn-sprint btn-sprint-new" style="font-size:12px;padding:7px 16px" onclick="rebuildSprintHistory()">↺ Reconstruir historial ('+closedSprints.length+' sprint'+( closedSprints.length!==1?'s':'')+' cerrado'+( closedSprints.length!==1?'s':'')+' detectado'+( closedSprints.length!==1?'s':'')+')</button></div>'
+      :'';
+    container.innerHTML='<div class="empty-state" style="margin-top:40px"><div class="empty-icon">📦</div><div>Sin historial guardado aún.</div>'+hint+'</div>';
     return;
   }
 
