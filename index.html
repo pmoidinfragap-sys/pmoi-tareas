@@ -999,7 +999,7 @@ async function initFB(){
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();renderSprintModal();refresh();badge('ok','Sync');});
     db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();badge('ok','Sync');});
     db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();renderDashDaily();badge('ok','Sync');});
-    db.ref('sprintHistory').on('value',s=>{sprintHistory=s.val()||{};renderSprintLog();});
+    db.ref('sprintHistory').on('value',s=>{sprintHistory=s.val()||{};console.log('[sprintHistory] keys:',Object.keys(sprintHistory));renderSprintLog();});
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
@@ -1085,7 +1085,7 @@ document.getElementById('nav-board').onclick=()=>showPage('board');
 document.getElementById('nav-daily').onclick=()=>showPage('daily');
 document.getElementById('nav-okr').onclick=()=>showPage('okr');
 document.getElementById('nav-sprintlog').onclick=()=>{showPage('sprintlog');renderSprintLog();};
-function refresh(){renderDash();renderBoard();renderDailyPage();renderOkrPage();}
+function refresh(){renderDash();renderBoard();renderDailyPage();renderOkrPage();renderSprintLog();}
 
 // ── SPRINT BANNER ──
 function sprintBanner(targetId){
@@ -1873,21 +1873,19 @@ async function closeSprint(id){
     updates['sprints/'+nextSprint.id+'/active']=true;
   }
 
+  // Incluir historial en el mismo update atómico
+  updates['sprintHistory/'+id]=snapshot;
+
+  console.log('[closeSprint] updates keys:', Object.keys(updates));
   try{
     await db.ref().update(updates);
     badge('ok','Sprint cerrado');
+    console.log('[closeSprint] update OK');
   }catch(e){
-    console.error('Error al cerrar sprint (update principal):', e);
-    badge('wait','Error al cerrar: '+e.message);
+    console.error('[closeSprint] update FAILED:', e);
+    badge('wait','Error: '+e.message);
     alert('Error al guardar en Firebase: '+e.message);
     return;
-  }
-
-  // Guardar historial por separado (nodo independiente)
-  try{
-    await db.ref('sprintHistory/'+id).set(snapshot);
-  }catch(e){
-    console.warn('Historial no guardado (permisos?):', e.message);
   }
 
   showSprintCloseReport(snapshot, nextSprint);
@@ -1995,7 +1993,8 @@ function renderSprintLog(){
   }
 
   if(!history.length){
-    container.innerHTML='<div class="empty-state" style="margin-top:40px"><div class="empty-icon">📦</div><div>Sin sprints cerrados aún.<br>El historial aparecerá aquí al cerrar tu primer sprint.</div></div>';
+    const dbStatus=db?'Conectado':'Sin conexión';
+    container.innerHTML='<div class="empty-state" style="margin-top:40px"><div class="empty-icon">📦</div><div>Sin sprints cerrados aún.<br>El historial aparecerá aquí al cerrar tu primer sprint.</div><div style="font-size:10px;color:var(--gray);margin-top:8px">DB: '+dbStatus+' · Registros: '+Object.keys(sprintHistory).length+'</div></div>';
     return;
   }
 
