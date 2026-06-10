@@ -1093,7 +1093,7 @@ function sprintBanner(targetId){
   const sp=activeSp();
   const all=Object.values(tasks);
   const spT=sp?all.filter(t=>t.sprint===sp.id):[];
-  const done=spT.filter(t=>t.status==='done').length;
+  const done=spT.filter(isSprintDone).length;
   const total=spT.length;
   const pct=total?Math.round(done/total*100):0;
   const el=document.getElementById(targetId);if(!el)return;
@@ -1205,7 +1205,7 @@ function renderDash(){
     if(futureSprints.length)histHTML+=`<div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--gray);margin:10px 0 6px">Cerrados</div>`;
     histHTML+=pastSprints.slice(0,6).map(s=>{
       const sT=all.filter(t=>t.sprint===s.id);
-      const sD=sT.filter(t=>t.status==='done').length;
+      const sD=sT.filter(isSprintDone).length;
       const pct=sT.length?Math.round(sD/sT.length*100):0;
       const barColor=pct>=80?'var(--green)':pct>=50?'var(--orange)':'var(--red)';
       return`<div class="sprint-hist-item" style="flex-direction:column;align-items:stretch;gap:5px;cursor:default">
@@ -1728,6 +1728,11 @@ function openSprintModal(){renderSprintModal();openModal('modal-sprint');}
 
 function todayMs(){const t=new Date();t.setHours(0,0,0,0);return t.getTime();}
 
+// ── Regla de cumplimiento de sprint ──
+// "Completado" (done) y "En revisión" (review) cuentan como COMPLETADAS.
+// Backlog, Por hacer y En progreso cuentan como SIN COMPLETAR.
+function isSprintDone(t){return t&&(t.status==='done'||t.status==='review');}
+
 function sprintIsToday(sp){
   if(!sp||!sp.start||!sp.end)return false;
   const now=todayMs();
@@ -1882,8 +1887,9 @@ async function closeSprint(id){
   // Usar la clave del objeto (Firebase key) como ID real de la tarea
   const allTasks=Object.entries(tasks).map(([k,v])=>({...v, id:k}));
   const sprintTasks=allTasks.filter(t=>t.sprint===id);
-  const doneTasks=sprintTasks.filter(t=>t.status==='done');
-  const pendingTasks=sprintTasks.filter(t=>t.status!=='done');
+  // done + review = completadas; backlog/todo/progress = pendientes (se mueven al siguiente)
+  const doneTasks=sprintTasks.filter(isSprintDone);
+  const pendingTasks=sprintTasks.filter(t=>!isSprintDone(t));
 
   // Calcular completadas por persona
   const byPerson={};
@@ -1891,7 +1897,7 @@ async function closeSprint(id){
     const p=t.assignee||'Sin asignar';
     if(!byPerson[p])byPerson[p]={done:0,titles:[]};
     byPerson[p].done++;
-    byPerson[p].titles.push(t.title||'');
+    byPerson[p].titles.push((t.status==='review'?'🔍 ':'')+(t.title||''));
   });
 
   // Buscar siguiente sprint (futuro más próximo)
@@ -1933,7 +1939,7 @@ async function closeSprint(id){
     pendingTasks:pendingTasks.length,
     completionPct:sprintTasks.length?Math.round(doneTasks.length/sprintTasks.length*100):0,
     byPerson,
-    doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||''})),
+    doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||''})),
     pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||''}))
   };
 
@@ -2071,9 +2077,10 @@ async function rebuildSprintHistory(){
     if(sprintHistory[sp.id])return;
 
     const sprintTasks=allTasks.filter(t=>t.sprint===sp.id||t.movedFromSprint===sp.id);
-    // Las completadas son las que tienen status done Y están en este sprint (o estaban antes de moverse)
-    const doneTasks=allTasks.filter(t=>t.sprint===sp.id&&t.status==='done');
-    const pendingTasks=allTasks.filter(t=>t.movedFromSprint===sp.id&&t.status!=='done');
+    // Completadas: done o review dentro del sprint
+    const doneTasks=allTasks.filter(t=>t.sprint===sp.id&&isSprintDone(t));
+    // Pendientes: las que se movieron al cierre + las que siguen en el sprint sin completar
+    const pendingTasks=allTasks.filter(t=>(t.movedFromSprint===sp.id&&t.sprint!==sp.id)||(t.sprint===sp.id&&!isSprintDone(t)));
     const allSprintTasks=[...doneTasks,...pendingTasks];
 
     const byPerson={};
@@ -2081,7 +2088,7 @@ async function rebuildSprintHistory(){
       const p=t.assignee||'Sin asignar';
       if(!byPerson[p])byPerson[p]={done:0,titles:[]};
       byPerson[p].done++;
-      byPerson[p].titles.push(t.title||'');
+      byPerson[p].titles.push((t.status==='review'?'🔍 ':'')+(t.title||''));
     });
 
     const total=allSprintTasks.length;
@@ -2096,7 +2103,7 @@ async function rebuildSprintHistory(){
       pendingTasks:pendingTasks.length,
       completionPct:total?Math.round(doneTasks.length/total*100):0,
       byPerson,
-      doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||''})),
+      doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||''})),
       pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||''})),
       rebuilt:true
     };
@@ -2116,6 +2123,65 @@ async function rebuildSprintHistory(){
   }catch(e){
     badge('wait','Error');
     alert('Error al guardar historial: '+e.message+'\n\nRevisa las reglas de Firebase — falta permiso para sprintHistory.');
+  }
+}
+
+// ── Recalcular el historial de UN sprint específico ──
+// Útil cuando se modificó un sprint ya cerrado o cambió la regla de cumplimiento.
+// Mantiene la fecha de cierre original y reconstruye:
+//  • Completadas: tareas done/review que siguen en el sprint
+//  • Pendientes: tareas que se MOVIERON al cierre (movedFromSprint) — aunque ya
+//    se hayan completado después, para ese sprint quedaron pendientes — más las
+//    que sigan en el sprint sin completar
+async function recalcSprintHistory(id){
+  if(!db)return;
+  const sp=sprints[id];
+  const prev=sprintHistory[id];
+  const meta={
+    id,
+    name:(sp&&sp.name)||(prev&&prev.sprintName)||id,
+    start:(sp&&sp.start)||(prev&&prev.sprintStart)||'',
+    end:(sp&&sp.end)||(prev&&prev.sprintEnd)||'',
+    closedAt:(prev&&prev.closedAt)||(sp&&sp.closedAt)||Date.now()
+  };
+  if(!confirm('Recalcular historial de:\n'+meta.name+'\n\nSe reconstruirá con los estatus ACTUALES de las tareas y la regla:\n• Completadas = Completado + En revisión\n• Pendientes = movidas al cierre + sin completar\n\nSe conserva la fecha de cierre original. ¿Continuar?'))return;
+
+  badge('wait','Recalculando...');
+  const allTasks=Object.entries(tasks).map(([k,v])=>({...v,id:k}));
+  const doneTasks=allTasks.filter(t=>t.sprint===id&&isSprintDone(t));
+  const pendingTasks=allTasks.filter(t=>(t.movedFromSprint===id&&t.sprint!==id)||(t.sprint===id&&!isSprintDone(t)));
+  const total=doneTasks.length+pendingTasks.length;
+
+  const byPerson={};
+  doneTasks.forEach(t=>{
+    const p=t.assignee||'Sin asignar';
+    if(!byPerson[p])byPerson[p]={done:0,titles:[]};
+    byPerson[p].done++;
+    byPerson[p].titles.push((t.status==='review'?'🔍 ':'')+(t.title||''));
+  });
+
+  const snapshot={
+    sprintId:id,
+    sprintName:meta.name,
+    sprintStart:meta.start,
+    sprintEnd:meta.end,
+    closedAt:meta.closedAt,
+    totalTasks:total,
+    doneTasks:doneTasks.length,
+    pendingTasks:pendingTasks.length,
+    completionPct:total?Math.round(doneTasks.length/total*100):0,
+    byPerson,
+    doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||''})),
+    pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||''})),
+    recalculatedAt:Date.now()
+  };
+
+  try{
+    await db.ref('sprintHistory/'+id).set(snapshot);
+    badge('ok','Historial recalculado');
+  }catch(e){
+    badge('wait','Error');
+    alert('Error al recalcular: '+e.message);
   }
 }
 
@@ -2232,7 +2298,8 @@ function renderSprintLog(){
     (h.pendingTasksList||[]).forEach(t=>{
       const p=t.assignee||'Sin asignar';
       if(!pendingByPerson[p])pendingByPerson[p]=[];
-      pendingByPerson[p].push(t.title||'');
+      const stLb=t.status&&CMAP[t.status]?' · '+CMAP[t.status].lb:'';
+      pendingByPerson[p].push((t.title||'')+stLb);
     });
 
     // Todos los assignees del equipo (config) + quienes aparecen en el sprint
@@ -2303,12 +2370,13 @@ function renderSprintLog(){
         <div style="flex:1;min-width:140px">
           <div style="font-size:14px;font-weight:700;color:var(--navy)">${esc(h.sprintName)}</div>
           <div style="font-size:11px;color:var(--gray);margin-top:2px">${fmtD(h.sprintStart)} → ${fmtD(h.sprintEnd)}</div>
-          <div style="font-size:10px;color:var(--gray-mid);margin-top:2px">Cerrado: ${closedFmt}</div>
+          <div style="font-size:10px;color:var(--gray-mid);margin-top:2px">Cerrado: ${closedFmt}${h.recalculatedAt?' · ↺ recalculado '+new Date(h.recalculatedAt).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}):''}</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${pendingBadge}
           <span style="padding:2px 10px;background:rgba(16,185,129,.15);color:var(--green);border-radius:12px;font-size:11px;font-weight:700">${h.doneTasks}/${h.totalTasks} ✓</span>
           <span style="padding:2px 10px;background:${barColor}22;color:${barColor};border-radius:12px;font-size:11px;font-weight:700">${h.completionPct}%</span>
+          <button onclick="recalcSprintHistory('${esc(h.sprintId)}')" title="Recalcular con estatus actuales (Completado + En revisión = completadas)" style="padding:2px 8px;background:none;border:1px solid var(--gray-light);border-radius:8px;font-size:10px;font-weight:700;color:var(--gray);cursor:pointer">↺ Recalcular</button>
         </div>
       </div>
       <div style="height:6px;background:var(--gray-light);border-radius:3px;margin-bottom:10px;overflow:hidden">
