@@ -1897,7 +1897,7 @@ async function closeSprint(id){
     const p=t.assignee||'Sin asignar';
     if(!byPerson[p])byPerson[p]={done:0,titles:[]};
     byPerson[p].done++;
-    byPerson[p].titles.push((t.status==='review'?'🔍 ':'')+(t.title||''));
+    byPerson[p].titles.push((t.title||'')+(t.status==='review'?' · En revisión':''));
   });
 
   // Buscar siguiente sprint (futuro más próximo)
@@ -2077,10 +2077,11 @@ async function rebuildSprintHistory(){
     if(sprintHistory[sp.id])return;
 
     const sprintTasks=allTasks.filter(t=>t.sprint===sp.id||t.movedFromSprint===sp.id);
-    // Completadas: done o review dentro del sprint
-    const doneTasks=allTasks.filter(t=>t.sprint===sp.id&&isSprintDone(t));
-    // Pendientes: las que se movieron al cierre + las que siguen en el sprint sin completar
-    const pendingTasks=allTasks.filter(t=>(t.movedFromSprint===sp.id&&t.sprint!==sp.id)||(t.sprint===sp.id&&!isSprintDone(t)));
+    // Completadas: "En revisión" SIEMPRE cuenta como completada (aunque se haya
+    // movido al cierre), más las "Completado" que siguen en el sprint
+    const doneTasks=sprintTasks.filter(t=>t.status==='review'||(t.status==='done'&&t.sprint===sp.id));
+    // Pendientes: el resto (backlog / por hacer / en progreso, y movidas)
+    const pendingTasks=sprintTasks.filter(t=>!(t.status==='review'||(t.status==='done'&&t.sprint===sp.id)));
     const allSprintTasks=[...doneTasks,...pendingTasks];
 
     const byPerson={};
@@ -2088,7 +2089,7 @@ async function rebuildSprintHistory(){
       const p=t.assignee||'Sin asignar';
       if(!byPerson[p])byPerson[p]={done:0,titles:[]};
       byPerson[p].done++;
-      byPerson[p].titles.push((t.status==='review'?'🔍 ':'')+(t.title||''));
+      byPerson[p].titles.push((t.title||'')+(t.status==='review'?' · En revisión':''));
     });
 
     const total=allSprintTasks.length;
@@ -2148,8 +2149,13 @@ async function recalcSprintHistory(id){
 
   badge('wait','Recalculando...');
   const allTasks=Object.entries(tasks).map(([k,v])=>({...v,id:k}));
-  const doneTasks=allTasks.filter(t=>t.sprint===id&&isSprintDone(t));
-  const pendingTasks=allTasks.filter(t=>(t.movedFromSprint===id&&t.sprint!==id)||(t.sprint===id&&!isSprintDone(t)));
+  const pool=allTasks.filter(t=>t.sprint===id||t.movedFromSprint===id);
+  // "En revisión" SIEMPRE cuenta como completada, aunque la tarea se haya
+  // movido al siguiente sprint durante el cierre. "Completado" cuenta si la
+  // tarea sigue en este sprint (si se completó después en otro sprint, para
+  // este sprint quedó pendiente).
+  const doneTasks=pool.filter(t=>t.status==='review'||(t.status==='done'&&t.sprint===id));
+  const pendingTasks=pool.filter(t=>!(t.status==='review'||(t.status==='done'&&t.sprint===id)));
   const total=doneTasks.length+pendingTasks.length;
 
   const byPerson={};
@@ -2157,7 +2163,7 @@ async function recalcSprintHistory(id){
     const p=t.assignee||'Sin asignar';
     if(!byPerson[p])byPerson[p]={done:0,titles:[]};
     byPerson[p].done++;
-    byPerson[p].titles.push((t.status==='review'?'🔍 ':'')+(t.title||''));
+    byPerson[p].titles.push((t.title||'')+(t.status==='review'?' · En revisión':''));
   });
 
   const snapshot={
@@ -2194,7 +2200,10 @@ function renderSprintLog(){
 
   // Rebuild person filter
   const allPersons=new Set();
-  history.forEach(h=>Object.keys(h.byPerson||{}).forEach(p=>allPersons.add(p)));
+  history.forEach(h=>{
+    Object.keys(h.byPerson||{}).forEach(p=>allPersons.add(p));
+    (h.pendingTasksList||[]).forEach(t=>allPersons.add(t.assignee||'Sin asignar'));
+  });
   const selPerson=personSel?personSel.value:'';
   if(personSel){
     personSel.innerHTML='<option value="">Todas las personas</option>'+
@@ -2211,13 +2220,42 @@ function renderSprintLog(){
     return;
   }
 
-  // Resumen global
-  const totalDone=history.reduce((a,h)=>a+(h.doneTasks||0),0);
-  const totalAll=history.reduce((a,h)=>a+(h.totalTasks||0),0);
-  const avgPct=history.length?Math.round(history.reduce((a,h)=>a+(h.completionPct||0),0)/history.length):0;
+  // ── Reclasificación al vuelo de snapshots guardados ──
+  // Los snapshots viejos pueden tener tareas "En revisión" dentro de
+  // pendingTasksList (se cerraron con la regla anterior). Al mostrar, esas
+  // tareas se pasan a COMPLETADAS con la etiqueta "En revisión" y se ajustan
+  // los contadores y el %.
+  function adjustHist(h){
+    const completedByPerson=JSON.parse(JSON.stringify(h.byPerson||{}));
+    const pendingList=[];
+    let reclass=0;
+    (h.pendingTasksList||[]).forEach(t=>{
+      if(t.status==='review'){
+        const p=t.assignee||'Sin asignar';
+        if(!completedByPerson[p])completedByPerson[p]={done:0,titles:[]};
+        completedByPerson[p].done++;
+        completedByPerson[p].titles.push((t.title||'')+' · En revisión');
+        reclass++;
+      }else{
+        pendingList.push(t);
+      }
+    });
+    const done=(h.doneTasks||0)+reclass;
+    const total=(h.totalTasks!=null)?h.totalTasks:done+pendingList.length;
+    const pct=total?Math.round(done/total*100):0;
+    return{done,total,pending:pendingList.length,pct,completedByPerson,pendingList};
+  }
+  const adjMap={};
+  history.forEach(h=>{adjMap[h.sprintId||h.sprintName]=adjustHist(h);});
+  const adjOf=h=>adjMap[h.sprintId||h.sprintName];
+
+  // Resumen global (con reclasificación aplicada)
+  const totalDone=history.reduce((a,h)=>a+adjOf(h).done,0);
+  const totalAll=history.reduce((a,h)=>a+adjOf(h).total,0);
+  const avgPct=history.length?Math.round(history.reduce((a,h)=>a+adjOf(h).pct,0)/history.length):0;
   const globalByPerson={};
   history.forEach(h=>{
-    Object.entries(h.byPerson||{}).forEach(([p,d])=>{
+    Object.entries(adjOf(h).completedByPerson).forEach(([p,d])=>{
       if(!globalByPerson[p])globalByPerson[p]={done:0,sprints:0};
       globalByPerson[p].done+=d.done||0;
       globalByPerson[p].sprints++;
@@ -2227,7 +2265,7 @@ function renderSprintLog(){
   // Pendientes acumuladas por persona (para el resumen global)
   const globalPendingByPerson={};
   history.forEach(h=>{
-    (h.pendingTasksList||[]).forEach(t=>{
+    adjOf(h).pendingList.forEach(t=>{
       const p=t.assignee||'Sin asignar';
       if(!globalPendingByPerson[p])globalPendingByPerson[p]=0;
       globalPendingByPerson[p]++;
@@ -2282,20 +2320,21 @@ function renderSprintLog(){
 
   // Lista de sprints cerrados
   const filteredHistory=selPerson
-    ?history.filter(h=>h.byPerson&&h.byPerson[selPerson])
+    ?history.filter(h=>adjOf(h).completedByPerson[selPerson]||adjOf(h).pendingList.some(t=>(t.assignee||'Sin asignar')===selPerson))
     :history;
 
   const sprintCards=filteredHistory.map(h=>{
-    const barColor=h.completionPct>=80?'var(--green)':h.completionPct>=50?'var(--orange)':'var(--red)';
+    const adj=adjOf(h);
+    const barColor=adj.pct>=80?'var(--green)':adj.pct>=50?'var(--orange)':'var(--red)';
     const closedFmt=h.closedAt?new Date(h.closedAt).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
 
     // ── Tabla completa por persona ──────────────────────────────────────────
-    // Personas que completaron tareas (del snapshot byPerson)
-    const completedByPerson=h.byPerson||{};
+    // Personas que completaron tareas (snapshot byPerson + reclasificadas "En revisión")
+    const completedByPerson=adj.completedByPerson;
 
-    // Personas con tareas pendientes (del snapshot pendingTasksList)
+    // Personas con tareas REALMENTE pendientes (backlog / por hacer / en progreso)
     const pendingByPerson={};
-    (h.pendingTasksList||[]).forEach(t=>{
+    adj.pendingList.forEach(t=>{
       const p=t.assignee||'Sin asignar';
       if(!pendingByPerson[p])pendingByPerson[p]=[];
       const stLb=t.status&&CMAP[t.status]?' · '+CMAP[t.status].lb:'';
@@ -2362,8 +2401,8 @@ function renderSprintLog(){
         <tbody>${personRows}</tbody>
       </table>`;
 
-    const pendingBadge=h.pendingTasks
-      ?`<span style="padding:2px 8px;background:rgba(251,133,0,.15);color:var(--orange);border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">${h.pendingTasks} movidas</span>`:'';
+    const pendingBadge=adj.pending
+      ?`<span style="padding:2px 8px;background:rgba(251,133,0,.15);color:var(--orange);border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">${adj.pending} sin completar</span>`:'';
 
     return`<div class="dash-card" style="margin-bottom:14px">
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap">
@@ -2374,13 +2413,13 @@ function renderSprintLog(){
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${pendingBadge}
-          <span style="padding:2px 10px;background:rgba(16,185,129,.15);color:var(--green);border-radius:12px;font-size:11px;font-weight:700">${h.doneTasks}/${h.totalTasks} ✓</span>
-          <span style="padding:2px 10px;background:${barColor}22;color:${barColor};border-radius:12px;font-size:11px;font-weight:700">${h.completionPct}%</span>
+          <span style="padding:2px 10px;background:rgba(16,185,129,.15);color:var(--green);border-radius:12px;font-size:11px;font-weight:700">${adj.done}/${adj.total} ✓</span>
+          <span style="padding:2px 10px;background:${barColor}22;color:${barColor};border-radius:12px;font-size:11px;font-weight:700">${adj.pct}%</span>
           <button onclick="recalcSprintHistory('${esc(h.sprintId)}')" title="Recalcular con estatus actuales (Completado + En revisión = completadas)" style="padding:2px 8px;background:none;border:1px solid var(--gray-light);border-radius:8px;font-size:10px;font-weight:700;color:var(--gray);cursor:pointer">↺ Recalcular</button>
         </div>
       </div>
       <div style="height:6px;background:var(--gray-light);border-radius:3px;margin-bottom:10px;overflow:hidden">
-        <div style="width:${h.completionPct}%;height:100%;background:${barColor};border-radius:3px"></div>
+        <div style="width:${adj.pct}%;height:100%;background:${barColor};border-radius:3px"></div>
       </div>
       ${personTable}
     </div>`;
