@@ -972,7 +972,7 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
+let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
 
 // ── AUTH ──
 function doLogin(){
@@ -1720,9 +1720,9 @@ async function deleteDaily(){
 }
 
 // ── SPRINTS ──
-document.getElementById('close-modal-sprint').onclick=()=>closeModal('modal-sprint');
+document.getElementById('close-modal-sprint').onclick=()=>{if(editSprintId)cancelEditSprint();closeModal('modal-sprint');};
 document.getElementById('btn-save-sprint').onclick=saveSprint;
-document.getElementById('modal-sprint').onclick=e=>{if(e.target===e.currentTarget)closeModal('modal-sprint');};
+document.getElementById('modal-sprint').onclick=e=>{if(e.target===e.currentTarget){if(editSprintId)cancelEditSprint();closeModal('modal-sprint');}};
 
 function openSprintModal(){renderSprintModal();openModal('modal-sprint');}
 
@@ -1748,6 +1748,8 @@ function sprintIsPast(sp){
 function sprintChip(sp){
   if(sp.active===true||sp.active==='true')
     return`<span class="s-badge s-active" style="white-space:nowrap">✓ Activo</span>`;
+  if(sp.closed===true)
+    return`<span class="s-badge" style="background:rgba(231,76,60,.1);color:var(--red);white-space:nowrap">🔒 Cerrado</span>`;
   if(sprintIsToday(sp))
     return`<span class="s-badge" style="background:rgba(251,133,0,.18);color:var(--orange);white-space:nowrap">⚡ Esta semana</span>`;
   if(sprintIsFuture(sp)){
@@ -1764,6 +1766,24 @@ async function saveSprint(){
   if(!name){alert('Escribe un nombre para el sprint.');return;}
   if(!start||!end){alert('Selecciona las fechas de inicio y fin.');return;}
   if(start>end){alert('La fecha de inicio debe ser anterior al fin.');return;}
+
+  // ── Modo edición: actualizar sprint existente (incluso cerrado) ──
+  if(editSprintId&&sprints[editSprintId]){
+    const updates={};
+    updates['sprints/'+editSprintId+'/name']=name;
+    updates['sprints/'+editSprintId+'/start']=start;
+    updates['sprints/'+editSprintId+'/end']=end;
+    // Sincronizar el snapshot del historial si existe
+    if(sprintHistory[editSprintId]){
+      updates['sprintHistory/'+editSprintId+'/sprintName']=name;
+      updates['sprintHistory/'+editSprintId+'/sprintStart']=start;
+      updates['sprintHistory/'+editSprintId+'/sprintEnd']=end;
+    }
+    badge('wait','Actualizando...');
+    if(db)await db.ref().update(updates);
+    cancelEditSprint();
+    return;
+  }
 
   const isCurrent=sprintIsToday({start,end});
   const hasCurrent=Object.values(sprints).some(s=>s.active===true||s.active==='true');
@@ -1795,6 +1815,63 @@ async function activateSprint(id){
   updates['sprints/'+id+'/active']=true;
   badge('wait','Activando...');
   await db.ref().update(updates);
+}
+
+// ── Editar sprint (incluye sprints cerrados) ──
+function editSprint(id){
+  const sp=sprints[id];if(!sp)return;
+  editSprintId=id;
+  document.getElementById('s-name').value=sp.name||'';
+  document.getElementById('s-start').value=sp.start||'';
+  document.getElementById('s-end').value=sp.end||'';
+  const btn=document.getElementById('btn-save-sprint');
+  btn.textContent='💾 Guardar cambios — '+(sp.name||'');
+  btn.style.background='var(--navy)';
+  renderSprintModal();
+  document.getElementById('s-name').focus();
+}
+function cancelEditSprint(){
+  editSprintId=null;
+  document.getElementById('s-name').value='';
+  document.getElementById('s-start').value='';
+  document.getElementById('s-end').value='';
+  const btn=document.getElementById('btn-save-sprint');
+  btn.textContent='Agregar sprint';
+  btn.style.background='';
+  renderSprintModal();
+}
+
+// ── Reabrir un sprint cerrado ──
+async function reopenSprint(id){
+  const sp=sprints[id];if(!sp||!db)return;
+  const msg=[
+    'Sprint: '+sp.name,
+    '',
+    'Al reabrirlo:',
+    '• Se quitará la marca de cerrado',
+    '• Se convertirá en el sprint ACTIVO (los demás se desactivan)',
+    '• Su registro en el historial se eliminará (se regenerará al volver a cerrarlo)',
+    '',
+    'Nota: las tareas pendientes que se movieron al siguiente sprint NO regresan automáticamente; puedes reasignarlas editando cada tarea.',
+    '',
+    '¿Confirmas reabrir el sprint?'
+  ].join('\n');
+  if(!confirm(msg))return;
+  badge('wait','Reabriendo sprint...');
+  const updates={};
+  Object.keys(sprints).forEach(k=>{updates['sprints/'+k+'/active']=false;});
+  updates['sprints/'+id+'/active']=true;
+  updates['sprints/'+id+'/closed']=null;
+  updates['sprints/'+id+'/closedAt']=null;
+  updates['sprintHistory/'+id]=null;
+  try{
+    await db.ref().update(updates);
+    badge('ok','Sprint reabierto');
+  }catch(e){
+    console.error('[reopenSprint] FAILED:',e);
+    badge('wait','Error: '+e.message);
+    alert('Error al reabrir en Firebase: '+e.message);
+  }
 }
 
 // Cierra (desactiva) un sprint con todas las acciones de cierre
@@ -2275,20 +2352,29 @@ function renderSprintModal(){
         <button onclick="repairSprints()" style="padding:3px 10px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">Reparar</button>
       </div>`:'';
 
-  el.innerHTML=repairBtn+arr.map(s=>{
+  el.innerHTML=repairBtn+(editSprintId?`<div style="margin-bottom:10px;padding:8px 10px;background:rgba(10,110,160,.08);border:1px solid rgba(10,110,160,.25);border-radius:8px;font-size:11px;color:var(--navy);display:flex;justify-content:space-between;align-items:center">
+        <span>✏️ Editando un sprint — modifica los campos de arriba y guarda</span>
+        <button onclick="cancelEditSprint()" style="padding:3px 10px;background:none;border:1px solid var(--gray-light);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:var(--gray)">Cancelar</button>
+      </div>`:'')+arr.map(s=>{
     const chip=sprintChip(s);
     const isActive=s.active===true||s.active==='true';
+    const isClosed=s.closed===true;
+    const editBtn=`<button onclick="editSprint('${s.id}')" style="padding:4px 8px;background:none;border:none;color:var(--gray-mid);cursor:pointer;font-size:14px;line-height:1" title="Editar nombre y fechas">✏️</button>`;
     const actBtn=isActive
       ?`<button onclick="closeSprint('${s.id}')" style="padding:4px 10px;background:rgba(231,76,60,.08);color:var(--red);border:1px solid rgba(231,76,60,.25);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">Cerrar</button>`
+      :isClosed
+      ?`<button onclick="reopenSprint('${s.id}')" style="padding:4px 10px;background:rgba(39,174,96,.1);color:var(--green);border:1px solid rgba(39,174,96,.3);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">↺ Reabrir</button>
+        <button onclick="deleteSprint('${s.id}')" style="padding:4px 8px;background:none;border:none;color:var(--gray-mid);cursor:pointer;font-size:15px;line-height:1" title="Eliminar">🗑</button>`
       :`<button onclick="activateSprint('${s.id}')" style="padding:4px 10px;background:var(--navy);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">${sprintIsToday(s)?'⚡ Activar':'Activar'}</button>
         <button onclick="deleteSprint('${s.id}')" style="padding:4px 8px;background:none;border:none;color:var(--gray-mid);cursor:pointer;font-size:15px;line-height:1" title="Eliminar">🗑</button>`;
-    return`<div class="sprint-list-item" style="gap:6px;flex-wrap:nowrap">
+    const editing=editSprintId===s.id;
+    return`<div class="sprint-list-item" style="gap:6px;flex-wrap:nowrap${editing?';outline:2px solid var(--navy-light);outline-offset:-2px':''}">
       <div style="flex:1;min-width:0;overflow:hidden">
         <div class="sprint-list-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.name)}</div>
         <div class="sprint-list-dates">${fmtD(s.start)} → ${fmtD(s.end)}</div>
       </div>
       ${chip}
-      <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">${actBtn}</div>
+      <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">${editBtn}${actBtn}</div>
     </div>`;
   }).join('');
 }
