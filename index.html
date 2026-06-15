@@ -1051,7 +1051,12 @@ function activeSp(){
 function rebuildFilters(){
   const fA=document.getElementById('filter-assignee');if(!fA)return;
   const cur=fA.value;
-  const names=[...new Set([...config.assignees,...Object.values(tasks).map(t=>t.assignee).filter(Boolean)])].sort();
+  // Incluir tanto responsables como colaboradores en el filtro
+  const names=[...new Set([
+    ...config.assignees,
+    ...Object.values(tasks).map(t=>t.assignee).filter(Boolean),
+    ...Object.values(tasks).flatMap(t=>t.collaborators||[]).filter(Boolean)
+  ])].sort();
   fA.innerHTML='<option value="">Todos los responsables</option>'+names.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('');
 }
 function rebuildConfigSelects(){
@@ -1403,7 +1408,7 @@ function getFiltered(){
   return Object.values(tasks).filter(t=>{
     if(fS&&t.status!==fS)return false;
     if(fP&&t.priority!==fP)return false;
-    if(fA&&t.assignee!==fA)return false;
+    if(fA&&t.assignee!==fA&&!(t.collaborators||[]).includes(fA))return false;
     if(fSp&&t.sprint!==fSp)return false;
     if(q&&!t.title?.toLowerCase().includes(q)&&!t.desc?.toLowerCase().includes(q))return false;
     return true;
@@ -1540,7 +1545,7 @@ async function saveTask(){
     priority:document.getElementById('f-priority').value,
     assignee:document.getElementById('f-assignee').value.trim(),
     reviewer:document.getElementById('f-reviewer').value.trim()||null,
-    collaborators:collabGetTags(),
+    collaborators:collabGetTags().length?collabGetTags():null,
     due:document.getElementById('f-due').value,
     tag:document.getElementById('f-tag').value.trim(),
     sprint:document.getElementById('f-sprint').value||null,
@@ -1883,7 +1888,7 @@ function collabSetTags(arr){
   _collabTags=(arr||[]).filter(Boolean);
   _collabRender();
 }
-function collabGetTags(){return _collabTags.length?[..._collabTags]:null;}
+function collabGetTags(){return [..._collabTags];}
 function _collabRender(){
   const wrap=document.getElementById('f-collab-tags');
   if(!wrap)return;
@@ -2627,7 +2632,14 @@ function renderSprintLog(){
   </div>`;
   // Lista de sprints cerrados
   const filteredHistory=selPerson
-    ?history.filter(h=>adjOf(h).byP[selPerson]||adjOf(h).pendingList.some(t=>(t.assignee||'Sin asignar')===selPerson))
+    ?history.filter(h=>{
+        const adj=adjOf(h);
+        if(adj.byP[selPerson])return true;
+        if(adj.pendingList.some(t=>(t.assignee||'Sin asignar')===selPerson))return true;
+        // También incluir si fue colaborador en alguna tarea del sprint
+        const allTasks=[...(h.doneTasksList||[]),...(h.pendingTasksList||[])];
+        return allTasks.some(t=>(t.collaborators||[]).includes(selPerson));
+      })
     :history;
 
   const sprintCards=filteredHistory.map(h=>{
