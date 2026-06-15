@@ -856,6 +856,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="form-group"><label class="form-label">Responsable</label><select class="form-select" id="f-assignee"><option value="">— Sin asignar —</option></select></div>
         <div class="form-group"><label class="form-label">👁 Revisor</label><select class="form-select" id="f-reviewer"><option value="">— Sin revisor —</option></select></div>
         <div class="form-group"><label class="form-label">Fecha limite</label><input class="form-input" id="f-due" type="date"></div>
+        <div class="form-group full"><label class="form-label" style="margin-bottom:4px">👥 Colaboradores <span style="font-size:9px;font-weight:500;color:var(--gray)">(apoyan en la tarea — el responsable principal sigue siendo el dueño del cumplimiento)</span></label><div id="f-collaborators-wrap" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;padding:6px 8px;border:1px solid var(--gray-light);border-radius:8px;background:#fff;cursor:text" onclick="document.getElementById('f-collab-input').focus()"><span id="f-collab-tags" style="display:contents"></span><input id="f-collab-input" placeholder="Escribe o selecciona…" style="border:none;outline:none;font-size:12px;min-width:120px;flex:1;padding:0;background:transparent" list="f-collab-datalist" autocomplete="off" onkeydown="collabInputKey(event)" oninput="collabInputFilter(this.value)"><datalist id="f-collab-datalist"></datalist></div></div>
         <div class="form-group"><label class="form-label">Etiqueta</label><select class="form-select" id="f-tag"><option value="">— Sin etiqueta —</option></select></div>
         <div class="form-group"><label class="form-label">Sprint</label><select class="form-select" id="f-sprint"><option value="">Sin sprint</option></select></div>
         <div class="form-group full"><label class="form-label">🎯 Key Result vinculado</label><select class="form-select" id="f-kr"><option value="">— Sin KR asociado —</option></select><div class="kr-link-note">El progreso del KR se calculará desde las tareas vinculadas completadas.</div></div>
@@ -1058,6 +1059,8 @@ function rebuildConfigSelects(){
   if(fA){const cv=fA.value;fA.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${esc(n)}</option>`).join('');}
   const fR=document.getElementById('f-reviewer');
   if(fR){const cv=fR.value;fR.innerHTML='<option value="">— Sin revisor —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${esc(n)}</option>`).join('');}
+  const dl=document.getElementById('f-collab-datalist');
+  if(dl)dl.innerHTML=config.assignees.map(n=>`<option value="${esc(n)}">`).join('');
   const fT=document.getElementById('f-tag');
   if(fT){const cv=fT.value;fT.innerHTML='<option value="">— Sin etiqueta —</option>'+config.tags.map(t=>`<option value="${esc(t)}"${t===cv?' selected':''}>${esc(t)}</option>`).join('');}
   // OKR eje estratégico selects
@@ -1438,7 +1441,10 @@ function cardHTML(t){
   const dc=dueCls(t.due);
   const cmts=t.comments?Object.keys(t.comments).length:0;
   const spn=t.sprint&&sprints[t.sprint]?`<span class="card-sprint-tag">${esc(sprints[t.sprint].name)}</span>`:'';
-  return`<div class="task-card" onclick="openDetail('${t.id}')" ${t.blocked?'style="border-left:3px solid var(--red)"':''}><div class="card-top"><span class="card-title">${esc(t.title)}</span><span class="card-pri ${priCls(t.priority)}"></span></div>${t.desc?`<div class="card-desc">${esc(t.desc)}</div>`:''}<div class="card-meta">${t.blocked?`<span style="font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:rgba(231,76,60,.12);color:var(--red)">🚫</span>`:''}${t.tag?`<span class="card-tag">${esc(t.tag)}</span>`:''}${spn}${t.assignee?`<span class="card-assignee"><span class="avatar">${esc(av(t.assignee))}</span>${esc(t.assignee)}</span>`:''}${cmts?`<span class="card-cmts" style="margin-left:auto">💬 ${cmts}</span>`:''}${t.due?`<span class="card-due ${dc}" ${cmts?'':'style="margin-left:auto"'}>📅 ${fmtD(t.due)}</span>`:''}</div></div>`;
+  const collabs=(t.collaborators||[]).slice(0,3).map(c=>`<span class="avatar" style="width:18px;height:18px;font-size:8px;margin-left:-5px;border:1.5px solid #fff" title="${esc(c)}">${esc(av(c))}</span>`).join('');
+  const collabMore=(t.collaborators||[]).length>3?`<span style="font-size:9px;color:var(--gray);margin-left:2px">+${t.collaborators.length-3}</span>`:'';
+  const collabRow=(t.collaborators&&t.collaborators.length)?`<span style="display:flex;align-items:center;margin-left:2px">${collabs}${collabMore}</span>`:'';
+  return`<div class="task-card" onclick="openDetail('${t.id}')" ${t.blocked?'style="border-left:3px solid var(--red)"':''}><div class="card-top"><span class="card-title">${esc(t.title)}</span><span class="card-pri ${priCls(t.priority)}"></span></div>${t.desc?`<div class="card-desc">${esc(t.desc)}</div>`:''}<div class="card-meta">${t.blocked?`<span style="font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:rgba(231,76,60,.12);color:var(--red)">🚫</span>`:''}${t.tag?`<span class="card-tag">${esc(t.tag)}</span>`:''}${spn}${t.assignee?`<span class="card-assignee"><span class="avatar">${esc(av(t.assignee))}</span>${esc(t.assignee)}</span>`:''}${collabRow}${cmts?`<span class="card-cmts" style="margin-left:auto">💬 ${cmts}</span>`:''}${t.due?`<span class="card-due ${dc}" ${cmts?'':'style="margin-left:auto"'}>📅 ${fmtD(t.due)}</span>`:''}</div></div>`;
 }
 function renderList(filtered){
   const c=document.getElementById('view-list');
@@ -1489,6 +1495,7 @@ function openNewTask(){
   const sp=activeSp();document.getElementById('f-sprint').value=sp?sp.id:'';
   document.getElementById('f-kr').value='';
   document.getElementById('f-reviewer').value='';
+  collabSetTags([]);
   document.getElementById('f-blocked').checked=false;
   document.getElementById('f-blocked-reason').value='';
   document.getElementById('f-blocked-wrap').style.display='none';
@@ -1509,6 +1516,7 @@ function openEditTask(id){
   document.getElementById('f-sprint').value=t.sprint||'';
   document.getElementById('f-kr').value=t.kr||'';
   document.getElementById('f-reviewer').value=t.reviewer||'';
+  collabSetTags(t.collaborators||[]);
   const isBlocked=!!t.blocked;
   document.getElementById('f-blocked').checked=isBlocked;
   document.getElementById('f-blocked-reason').value=t.blockedReason||'';
@@ -1532,6 +1540,7 @@ async function saveTask(){
     priority:document.getElementById('f-priority').value,
     assignee:document.getElementById('f-assignee').value.trim(),
     reviewer:document.getElementById('f-reviewer').value.trim()||null,
+    collaborators:collabGetTags(),
     due:document.getElementById('f-due').value,
     tag:document.getElementById('f-tag').value.trim(),
     sprint:document.getElementById('f-sprint').value||null,
@@ -1569,7 +1578,10 @@ function openDetail(id){
   const reviewerCell=t.reviewer
     ?`<div><div class="detail-label">👁 Revisor</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(t.reviewer))}</span>${esc(t.reviewer)}</div></div>`
     :'';
-  document.getElementById('d-meta').innerHTML=`<div><div class="detail-label">Responsable</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(t.assignee))}</span>${esc(t.assignee||'Sin asignar')}</div></div>${reviewerCell}<div><div class="detail-label">Fecha limite</div><div class="detail-value ${dueCls(t.due)}" style="margin-top:2px">${t.due?fmtD(t.due):'--'}</div></div>${t.tag?`<div><div class="detail-label">Etiqueta</div><div style="margin-top:2px"><span class="list-tag">${esc(t.tag)}</span></div></div>`:''}<div><div class="detail-label">Creado</div><div class="detail-value" style="margin-top:2px">${tsL(t.createdAt)}</div></div>`;
+  const collabCell=(t.collaborators&&t.collaborators.length)
+    ?`<div style="grid-column:1/-1"><div class="detail-label">👥 Colaboradores</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">${t.collaborators.map(c=>`<span style="display:flex;align-items:center;gap:5px;padding:3px 8px;background:var(--gray-pale);border-radius:20px;font-size:11px;font-weight:600"><span class="avatar" style="width:18px;height:18px;font-size:8px">${esc(av(c))}</span>${esc(c)}</span>`).join('')}</div></div>`
+    :'';
+  document.getElementById('d-meta').innerHTML=`<div><div class="detail-label">Responsable</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(t.assignee))}</span>${esc(t.assignee||'Sin asignar')}</div></div>${reviewerCell}<div><div class="detail-label">Fecha limite</div><div class="detail-value ${dueCls(t.due)}" style="margin-top:2px">${t.due?fmtD(t.due):'--'}</div></div>${t.tag?`<div><div class="detail-label">Etiqueta</div><div style="margin-top:2px"><span class="list-tag">${esc(t.tag)}</span></div></div>`:''}<div><div class="detail-label">Creado</div><div class="detail-value" style="margin-top:2px">${tsL(t.createdAt)}</div></div>${collabCell}`;
   // Banner de impedimento
   let blkWrap=document.getElementById('d-blocked-banner');
   if(!blkWrap){blkWrap=document.createElement('div');blkWrap.id='d-blocked-banner';const ds=document.getElementById('d-desc-section');ds.parentNode.insertBefore(blkWrap,ds);}
@@ -1865,6 +1877,52 @@ function todayMs(){const t=new Date();t.setHours(0,0,0,0);return t.getTime();}
 // Backlog, Por hacer y En progreso cuentan como SIN COMPLETAR.
 function isSprintDone(t){return t&&(t.status==='done'||t.status==='review');}
 
+// ── Colaboradores: multi-tag input ──────────────────────────────────────────
+let _collabTags=[];
+function collabSetTags(arr){
+  _collabTags=(arr||[]).filter(Boolean);
+  _collabRender();
+}
+function collabGetTags(){return _collabTags.length?[..._collabTags]:null;}
+function _collabRender(){
+  const wrap=document.getElementById('f-collab-tags');
+  if(!wrap)return;
+  wrap.innerHTML=_collabTags.map((c,i)=>
+    `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 6px;background:var(--navy);color:#fff;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap">
+      <span class="avatar" style="width:16px;height:16px;font-size:7px;background:rgba(255,255,255,.25);color:#fff;flex-shrink:0">${esc(av(c))}</span>
+      ${esc(c)}
+      <button type="button" onclick="collabRemove(${i})" style="background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:13px;line-height:1;padding:0 0 0 2px;margin:0">×</button>
+    </span>`
+  ).join('');
+}
+function collabRemove(i){_collabTags.splice(i,1);_collabRender();}
+function collabAdd(name){
+  const n=name.trim();
+  if(!n||_collabTags.includes(n))return;
+  // No permitir al mismo responsable como colaborador
+  const assignee=document.getElementById('f-assignee').value;
+  if(n===assignee){alert('El responsable principal no puede ser colaborador.');return;}
+  _collabTags.push(n);
+  _collabRender();
+}
+function collabInputKey(e){
+  const inp=e.target;
+  if(e.key==='Enter'||e.key===','||e.key===';'){
+    e.preventDefault();
+    const val=inp.value.trim().replace(/,|;/g,'');
+    if(val){collabAdd(val);inp.value='';}
+  }else if(e.key==='Backspace'&&inp.value===''&&_collabTags.length){
+    collabRemove(_collabTags.length-1);
+  }
+}
+function collabInputFilter(val){
+  // Si el valor coincide exactamente con una opción del catálogo, agregar
+  if(config.assignees.includes(val.trim())){
+    collabAdd(val.trim());
+    setTimeout(()=>{const i=document.getElementById('f-collab-input');if(i)i.value='';},0);
+  }
+}
+
 // ── Checkbox bloqueo toggle ──
 document.addEventListener('change',e=>{
   if(e.target.id==='f-blocked')
@@ -2110,8 +2168,8 @@ async function closeSprint(id){
     totalBlockedDays,
     blockedByPerson,
     byPerson,
-    doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||'',reviewer:t.reviewer||null})),
-    pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',reviewer:t.reviewer||null,blocked:!!t.blocked,blockedReason:t.blockedReason||null}))
+    doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||'',reviewer:t.reviewer||null,collaborators:t.collaborators||null})),
+    pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',reviewer:t.reviewer||null,blocked:!!t.blocked,blockedReason:t.blockedReason||null,collaborators:t.collaborators||null}))
   };
 
   // 3) Mover tareas pendientes al siguiente sprint
@@ -2275,8 +2333,8 @@ async function rebuildSprintHistory(){
       pendingTasks:pendingTasks.length,
       completionPct:total?Math.round(doneTasks.length/total*100):0,
       byPerson,
-      doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||''})),
-      pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||''})),
+      doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||'',collaborators:t.collaborators||null})),
+      pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',collaborators:t.collaborators||null})),
       rebuilt:true
     };
     updates['sprintHistory/'+sp.id]=snapshot;
@@ -2348,8 +2406,8 @@ async function recalcSprintHistory(id){
     pendingTasks:pendingTasks.length,
     completionPct:total?Math.round(doneTasks.length/total*100):0,
     byPerson,
-    doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||''})),
-    pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||''})),
+    doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||'',collaborators:t.collaborators||null})),
+    pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',collaborators:t.collaborators||null})),
     recalculatedAt:Date.now()
   };
 
@@ -2610,11 +2668,19 @@ function renderSprintLog(){
       const reviewCntReal=reviewTitles.length;
 
       const doneCell=doneCntReal
-        ?`<div style="font-size:10px;color:var(--text)">${doneTitles.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(16,185,129,.1);border-radius:4px">✅ ${esc(t)}</span>`).join('')}</div>`:'';
+        ?`<div style="font-size:10px;color:var(--text)">${(d?.titles||[]).filter(Boolean).map((t,i)=>{
+          const collabs=((d.doneTasks||[])[i]?.collaborators||(doneTasks_raw||[])[i]?.collaborators||[]);
+          const collabPills=collabs.length?collabs.map(c=>`<span style="padding:0 5px;background:rgba(3,43,67,.08);border-radius:8px;font-size:9px;color:var(--navy-mid);white-space:nowrap">👥${esc(c)}</span>`).join(' '):'';;
+          return`<span style="display:inline-flex;align-items:center;gap:3px;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(16,185,129,.1);border-radius:4px;flex-wrap:wrap">✅ ${esc(t)}${collabPills?'&thinsp;'+collabPills:''}</span>`;
+        }).join('')}</div>`:'';
       const reviewCell=reviewCntReal
-        ?`<div style="font-size:10px;color:var(--navy-mid);margin-top:${doneCntReal?2:0}px">${reviewTitles.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(10,110,160,.1);border-radius:4px">👁 ${esc(t)}</span>`).join('')}</div>`:'';
+        ?`<div style="font-size:10px;color:var(--navy-mid);margin-top:${doneCntReal?2:0}px">${(d?.reviewTitles||[]).filter(Boolean).map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(10,110,160,.1);border-radius:4px">👁 ${esc(t)}</span>`).join('')}</div>`:'';
       const pendCell=pendCnt
-        ?`<div style="font-size:10px;color:var(--orange);margin-top:${(doneCntReal||reviewCntReal)?2:0}px">${pending.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(251,133,0,.1);border-radius:4px">⏳ ${esc(t)}</span>`).join('')}</div>`:'';
+        ?`<div style="font-size:10px;color:var(--orange);margin-top:${(doneCntReal||reviewCntReal)?2:0}px">${pending.map(t=>{
+          const collabs=(t.collaborators||[]);
+          const collabPills=collabs.length?collabs.map(c=>`<span style="padding:0 4px;background:rgba(251,133,0,.12);border-radius:8px;font-size:9px;white-space:nowrap">👥${esc(c)}</span>`).join(' '):'';;
+          return`<span style="display:inline-flex;align-items:center;gap:3px;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(251,133,0,.1);border-radius:4px;flex-wrap:wrap">⏳ ${esc(t.title||t)}${collabPills?'&thinsp;'+collabPills:''}</span>`;
+        }).join('')}</div>`:'';
 
       const rowBg=pendCnt&&!totalDone?'rgba(231,76,60,.04)':pendCnt?'rgba(251,133,0,.04)':'';
 
