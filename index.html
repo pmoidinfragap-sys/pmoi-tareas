@@ -2381,29 +2381,53 @@ function renderSprintLog(){
   function adjustHist(h){
     const byP=JSON.parse(JSON.stringify(h.byPerson||{}));
     const pendingList=[];
-    let reclass=0;
-    (h.pendingTasksList||[]).forEach(t=>{
-      if(t.status==='review'){
-        const p=t.assignee||'Sin asignar';
-        if(!byP[p])byP[p]={done:0,review:0,titles:[],reviewTitles:[]};
-        byP[p].review=(byP[p].review||0)+1;
-        byP[p].reviewTitles=byP[p].reviewTitles||[];
-        byP[p].reviewTitles.push(t.title||'');
-        reclass++;
-      }else{
-        pendingList.push(t);
-      }
-    });
-    // Normalizar formato viejo (solo done+titles, con " · En revisión" embebido)
+
+    // 1) Migrar formato viejo: " · En revisión" embebido en titles → campo review separado
     Object.keys(byP).forEach(p=>{
       const d=byP[p];
       if(!('review' in d)){d.review=0;d.reviewTitles=[];}
       if(d.titles&&d.titles.some(t=>t.endsWith(' · En revisión'))){
         const cleaned=[],rev=[];
-        d.titles.forEach(t=>{if(t.endsWith(' · En revisión')){rev.push(t.replace(' · En revisión',''));d.review++;d.done=Math.max(0,(d.done||1)-1);}else cleaned.push(t);});
+        d.titles.forEach(t=>{
+          if(t.endsWith(' · En revisión')){rev.push(t.replace(' · En revisión',''));d.review++;d.done=Math.max(0,(d.done||1)-1);}
+          else cleaned.push(t);
+        });
         d.titles=cleaned;d.reviewTitles=[...rev,...(d.reviewTitles||[])];
       }
+      // Fix contadores corruptos: si hay títulos, los contadores deben concordar
+      if(d.titles)d.done=Math.max(d.done||0, d.titles.length);
+      if(d.reviewTitles)d.review=Math.max(d.review||0, d.reviewTitles.length);
     });
+
+    // 2) Reclasificar tareas del pendingTasksList que son review → completadas
+    (h.pendingTasksList||[]).forEach(t=>{
+      if(t.status==='review'||t.status==='done'){
+        // Tarea que quedó como done/review en pendingTasksList (snapshot viejo o carry-over completado)
+        const p=t.assignee||'Sin asignar';
+        if(!byP[p])byP[p]={done:0,review:0,titles:[],reviewTitles:[]};
+        if(t.status==='review'){
+          byP[p].review=(byP[p].review||0)+1;
+          byP[p].reviewTitles=byP[p].reviewTitles||[];
+          // Evitar duplicados
+          if(!byP[p].reviewTitles.includes(t.title||''))byP[p].reviewTitles.push(t.title||'');
+        }else{
+          byP[p].done=(byP[p].done||0)+1;
+          byP[p].titles=byP[p].titles||[];
+          if(!byP[p].titles.includes(t.title||''))byP[p].titles.push(t.title||'');
+        }
+      }else{
+        pendingList.push(t);
+      }
+    });
+
+    // 3) Recalcular totales desde títulos reales (fuente de verdad más confiable que contadores)
+    Object.keys(byP).forEach(p=>{
+      const d=byP[p];
+      // Si hay títulos, usarlos como fuente de verdad para los contadores
+      if(d.titles&&d.titles.length>0)d.done=d.titles.length;
+      if(d.reviewTitles&&d.reviewTitles.length>0)d.review=d.reviewTitles.length;
+    });
+
     const done=Object.values(byP).reduce((a,d)=>a+(d.done||0)+(d.review||0),0);
     const total=(h.totalTasks!=null)?h.totalTasks:done+pendingList.length;
     const pct=total?Math.round(done/total*100):0;
@@ -2433,20 +2457,33 @@ function renderSprintLog(){
 
   function sparkline(data){
     const pts=data.slice(-8);
-    if(pts.length<2)return pts.length===1?`<span style="font-size:10px;color:var(--gray)">${pts[0].pct!=null?pts[0].pct+'%':'—'}</span>`:'';
-    const W=64,H=22,pad=2;
+    const lastPct=pts.length?pts[pts.length-1].pct:null;
+    const lColor=lastPct==null?'var(--gray)':lastPct>=80?'var(--green)':lastPct>=60?'var(--orange)':'var(--red)';
+    // Flecha de tendencia: comparar último vs penúltimo punto real
+    const realPts=pts.filter(p=>p.pct!=null);
+    let arrow='';
+    if(realPts.length>=2){
+      const diff=realPts[realPts.length-1].pct-realPts[realPts.length-2].pct;
+      if(diff>0)arrow=`<span style="color:var(--green);font-size:11px;font-weight:800;margin-left:1px">↑</span>`;
+      else if(diff<0)arrow=`<span style="color:var(--red);font-size:11px;font-weight:800;margin-left:1px">↓</span>`;
+      else arrow=`<span style="color:var(--gray);font-size:11px;margin-left:1px">→</span>`;
+    }
+    if(pts.length<2)return pts.length===1?`<span style="font-size:10px;font-weight:700;color:${lColor}">${lastPct!=null?lastPct+'%':'—'}</span>${arrow}`:'';
+    const W=60,H=20,pad=2;
     const vals=pts.map(p=>p.pct!=null?p.pct:0);
     const mn=Math.min(...vals),mx=Math.max(...vals);
     const range=mx-mn||1;
     const xs=vals.map((_,i)=>pad+i*(W-2*pad)/(vals.length-1));
     const ys=vals.map(v=>H-pad-(v-mn)/range*(H-2*pad));
     const polyline=xs.map((x,i)=>`${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
-    const lastPct=pts[pts.length-1].pct;
-    const lColor=lastPct==null?'var(--gray)':lastPct>=80?'var(--green)':lastPct>=50?'var(--orange)':'var(--red)';
-    return`<svg width="${W}" height="${H}" style="overflow:visible" title="${pts.map(p=>p.sprintName+': '+(p.pct!=null?p.pct+'%':'—')).join(' | ')}">
-      <polyline points="${polyline}" fill="none" stroke="${lColor}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-      <circle cx="${xs[xs.length-1].toFixed(1)}" cy="${ys[ys.length-1].toFixed(1)}" r="2.5" fill="${lColor}"/>
-    </svg><span style="font-size:10px;font-weight:700;color:${lColor};margin-left:3px">${lastPct!=null?lastPct+'%':'—'}</span>`;
+    const title=pts.map(p=>p.sprintName+': '+(p.pct!=null?p.pct+'%':'—')).join(' | ');
+    return`<span style="display:flex;align-items:center;gap:2px" title="${esc(title)}">
+      <svg width="${W}" height="${H}" style="overflow:visible;flex-shrink:0">
+        <polyline points="${polyline}" fill="none" stroke="${lColor}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity=".7"/>
+        <circle cx="${xs[xs.length-1].toFixed(1)}" cy="${ys[ys.length-1].toFixed(1)}" r="2.5" fill="${lColor}"/>
+      </svg>
+      <span style="font-size:10px;font-weight:800;color:${lColor}">${lastPct!=null?lastPct+'%':'—'}</span>${arrow}
+    </span>`;
   }
 
   // ── Resumen global ──
@@ -2551,16 +2588,18 @@ function renderSprintLog(){
       const pct=total?Math.round(totalDone/total*100):null;
       const pctColor=pct===null?'var(--gray)':pct===100?'var(--green)':pct>=60?'var(--orange)':'var(--red)';
 
-      // Celdas de completadas y en revisión
-      const doneTitles=d?.titles||[];
-      const reviewTitles=d?.reviewTitles||[];
+      // Celdas de completadas y en revisión — fuente de verdad: los títulos
+      const doneTitles=(d?.titles||[]).filter(Boolean);
+      const reviewTitles=(d?.reviewTitles||[]).filter(Boolean);
+      const doneCntReal=doneTitles.length;
+      const reviewCntReal=reviewTitles.length;
 
-      const doneCell=doneCnt
+      const doneCell=doneCntReal
         ?`<div style="font-size:10px;color:var(--text)">${doneTitles.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(16,185,129,.1);border-radius:4px">✅ ${esc(t)}</span>`).join('')}</div>`:'';
-      const reviewCell=reviewCnt
-        ?`<div style="font-size:10px;color:var(--navy-mid);margin-top:${doneCnt?2:0}px">${reviewTitles.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(10,110,160,.1);border-radius:4px">👁 ${esc(t)}</span>`).join('')}</div>`:'';
+      const reviewCell=reviewCntReal
+        ?`<div style="font-size:10px;color:var(--navy-mid);margin-top:${doneCntReal?2:0}px">${reviewTitles.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(10,110,160,.1);border-radius:4px">👁 ${esc(t)}</span>`).join('')}</div>`:'';
       const pendCell=pendCnt
-        ?`<div style="font-size:10px;color:var(--orange);margin-top:${(doneCnt||reviewCnt)?2:0}px">${pending.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(251,133,0,.1);border-radius:4px">⏳ ${esc(t)}</span>`).join('')}</div>`:'';
+        ?`<div style="font-size:10px;color:var(--orange);margin-top:${(doneCntReal||reviewCntReal)?2:0}px">${pending.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(251,133,0,.1);border-radius:4px">⏳ ${esc(t)}</span>`).join('')}</div>`:'';
 
       const rowBg=pendCnt&&!totalDone?'rgba(231,76,60,.04)':pendCnt?'rgba(251,133,0,.04)':'';
 
