@@ -653,6 +653,10 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="dash-card"><div class="section-title">Tareas vencidas</div><div id="dash-overdue"></div></div>
       </div>
       <div class="dash-row">
+        <div class="dash-card"><div class="section-title">🚫 Impedimentos activos</div><div id="dash-blocked"></div></div>
+        <div class="dash-card"><div class="section-title">👁 Pendientes de revisión</div><div id="dash-review-queue"></div></div>
+      </div>
+      <div class="dash-row">
         <div class="dash-card"><div class="section-title">Distribucion por estado</div><div id="dash-by-status"></div></div>
         <div class="dash-card"><div class="section-title">Historial de sprints</div><div id="dash-sprint-history"></div></div>
       </div>
@@ -850,10 +854,20 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="form-group"><label class="form-label">Estado</label><select class="form-select" id="f-status"><option value="backlog">Backlog</option><option value="todo">Por hacer</option><option value="progress">En progreso</option><option value="review">En revision</option><option value="done">Completado</option></select></div>
         <div class="form-group"><label class="form-label">Prioridad</label><select class="form-select" id="f-priority"><option value="Media">Media</option><option value="Alta">Alta</option><option value="Baja">Baja</option></select></div>
         <div class="form-group"><label class="form-label">Responsable</label><select class="form-select" id="f-assignee"><option value="">— Sin asignar —</option></select></div>
+        <div class="form-group"><label class="form-label">👁 Revisor</label><select class="form-select" id="f-reviewer"><option value="">— Sin revisor —</option></select></div>
         <div class="form-group"><label class="form-label">Fecha limite</label><input class="form-input" id="f-due" type="date"></div>
         <div class="form-group"><label class="form-label">Etiqueta</label><select class="form-select" id="f-tag"><option value="">— Sin etiqueta —</option></select></div>
         <div class="form-group"><label class="form-label">Sprint</label><select class="form-select" id="f-sprint"><option value="">Sin sprint</option></select></div>
         <div class="form-group full"><label class="form-label">🎯 Key Result vinculado</label><select class="form-select" id="f-kr"><option value="">— Sin KR asociado —</option></select><div class="kr-link-note">El progreso del KR se calculará desde las tareas vinculadas completadas.</div></div>
+        <div class="form-group full" style="background:rgba(231,76,60,.05);border:1px solid rgba(231,76,60,.18);border-radius:9px;padding:10px 12px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+            <input type="checkbox" id="f-blocked" style="width:15px;height:15px;accent-color:var(--red)">
+            <span style="font-size:12px;font-weight:700;color:var(--red)">🚫 Marcar como bloqueada (impedimento)</span>
+          </label>
+          <div id="f-blocked-wrap" style="display:none;margin-top:8px">
+            <input class="form-input" id="f-blocked-reason" placeholder="¿Qué la bloquea? Ej: falta VoBo, espera proveedor..." maxlength="160" style="font-size:12px">
+          </div>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -972,7 +986,7 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
+let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
 
 // ── AUTH ──
 function doLogin(){
@@ -1001,6 +1015,7 @@ async function initFB(){
     db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();badge('ok','Sync');});
     db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();renderDashDaily();badge('ok','Sync');});
     db.ref('sprintHistory').on('value',s=>{sprintHistory=s.val()||{};console.log('[sprintHistory] keys:',Object.keys(sprintHistory));renderSprintLog();});
+    db.ref('sprintBaseline').on('value',s=>{sprintBaselines=s.val()||{};refresh();});
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
@@ -1041,6 +1056,8 @@ function rebuildFilters(){
 function rebuildConfigSelects(){
   const fA=document.getElementById('f-assignee');
   if(fA){const cv=fA.value;fA.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${esc(n)}</option>`).join('');}
+  const fR=document.getElementById('f-reviewer');
+  if(fR){const cv=fR.value;fR.innerHTML='<option value="">— Sin revisor —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${esc(n)}</option>`).join('');}
   const fT=document.getElementById('f-tag');
   if(fT){const cv=fT.value;fT.innerHTML='<option value="">— Sin etiqueta —</option>'+config.tags.map(t=>`<option value="${esc(t)}"${t===cv?' selected':''}>${esc(t)}</option>`).join('');}
   // OKR eje estratégico selects
@@ -1159,6 +1176,44 @@ function renderDash(){
   document.getElementById('dash-overdue').innerHTML=overdueList.length
     ?`<div class="overdue-list">${overdueList.slice(0,6).map(t=>`<div class="overdue-item" onclick="openDetail('${t.id}')"><div class="overdue-title">${esc(t.title)}</div><div class="overdue-who">${esc(t.assignee||'--')}</div><div class="overdue-date">${fmtD(t.due)}</div></div>`).join('')}</div>`
     :'<div class="empty-state"><div class="empty-icon">✅</div>Sin tareas vencidas</div>';
+
+  // ── Panel: Impedimentos activos ──
+  const blockedEl=document.getElementById('dash-blocked');
+  if(blockedEl){
+    const bList=all.filter(t=>t.blocked&&t.status!=='done').sort((a,b)=>(a.blockedAt||0)-(b.blockedAt||0));
+    blockedEl.innerHTML=bList.length
+      ?bList.map(t=>{
+          const days=t.blockedAt?Math.max(1,Math.ceil((Date.now()-t.blockedAt)/86400000)):1;
+          const dc=days>=7?'var(--red)':days>=3?'var(--orange)':'var(--navy)';
+          return`<div onclick="openDetail('${t.id}')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(231,76,60,.04);border:1px solid rgba(231,76,60,.12);border-radius:9px;margin-bottom:6px;cursor:pointer">
+            <span style="font-size:18px;flex-shrink:0">🚫</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title)}</div>
+              <div style="font-size:11px;color:var(--red);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.blockedReason||'Sin motivo')}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:11px;color:var(--gray)">${esc(t.assignee||'—')}</div>
+              <div style="font-size:11px;font-weight:800;color:${dc}">${days}d</div>
+            </div>
+          </div>`;
+        }).join('')
+      :'<div class="empty-state"><div class="empty-icon">🟢</div>Sin impedimentos activos</div>';
+  }
+
+  // ── Panel: Cola de revisión (reviewer asignado) ──
+  const reviewEl=document.getElementById('dash-review-queue');
+  if(reviewEl){
+    const rList=all.filter(t=>t.status==='review'&&t.reviewer).sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
+    reviewEl.innerHTML=rList.length
+      ?rList.map(t=>`<div onclick="openDetail('${t.id}')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(10,110,160,.04);border:1px solid rgba(10,110,160,.12);border-radius:9px;margin-bottom:6px;cursor:pointer">
+          <span class="avatar" style="flex-shrink:0;width:26px;height:26px;font-size:11px">${esc(av(t.reviewer))}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title)}</div>
+            <div style="font-size:11px;color:var(--gray);margin-top:1px">Revisor: <strong>${esc(t.reviewer)}</strong> · Resp: ${esc(t.assignee||'—')}</div>
+          </div>
+        </div>`).join('')
+      :'<div class="empty-state"><div class="empty-icon">👁</div>Sin tareas en revisión asignada</div>';
+  }
 
   document.getElementById('dash-by-status').innerHTML=COLS.map(c=>{
     const cnt=all.filter(t=>t.status===c.id).length;
@@ -1369,7 +1424,7 @@ function cardHTML(t){
   const dc=dueCls(t.due);
   const cmts=t.comments?Object.keys(t.comments).length:0;
   const spn=t.sprint&&sprints[t.sprint]?`<span class="card-sprint-tag">${esc(sprints[t.sprint].name)}</span>`:'';
-  return`<div class="task-card" onclick="openDetail('${t.id}')"><div class="card-top"><span class="card-title">${esc(t.title)}</span><span class="card-pri ${priCls(t.priority)}"></span></div>${t.desc?`<div class="card-desc">${esc(t.desc)}</div>`:''}<div class="card-meta">${t.tag?`<span class="card-tag">${esc(t.tag)}</span>`:''}${spn}${t.assignee?`<span class="card-assignee"><span class="avatar">${esc(av(t.assignee))}</span>${esc(t.assignee)}</span>`:''}${cmts?`<span class="card-cmts" style="margin-left:auto">💬 ${cmts}</span>`:''}${t.due?`<span class="card-due ${dc}" ${cmts?'':'style="margin-left:auto"'}>📅 ${fmtD(t.due)}</span>`:''}</div></div>`;
+  return`<div class="task-card" onclick="openDetail('${t.id}')" ${t.blocked?'style="border-left:3px solid var(--red)"':''}><div class="card-top"><span class="card-title">${esc(t.title)}</span><span class="card-pri ${priCls(t.priority)}"></span></div>${t.desc?`<div class="card-desc">${esc(t.desc)}</div>`:''}<div class="card-meta">${t.blocked?`<span style="font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:rgba(231,76,60,.12);color:var(--red)">🚫</span>`:''}${t.tag?`<span class="card-tag">${esc(t.tag)}</span>`:''}${spn}${t.assignee?`<span class="card-assignee"><span class="avatar">${esc(av(t.assignee))}</span>${esc(t.assignee)}</span>`:''}${cmts?`<span class="card-cmts" style="margin-left:auto">💬 ${cmts}</span>`:''}${t.due?`<span class="card-due ${dc}" ${cmts?'':'style="margin-left:auto"'}>📅 ${fmtD(t.due)}</span>`:''}</div></div>`;
 }
 function renderList(filtered){
   const c=document.getElementById('view-list');
@@ -1419,6 +1474,10 @@ function openNewTask(){
   document.getElementById('f-tag').value='';
   const sp=activeSp();document.getElementById('f-sprint').value=sp?sp.id:'';
   document.getElementById('f-kr').value='';
+  document.getElementById('f-reviewer').value='';
+  document.getElementById('f-blocked').checked=false;
+  document.getElementById('f-blocked-reason').value='';
+  document.getElementById('f-blocked-wrap').style.display='none';
   document.getElementById('btn-delete-task').classList.add('hidden');
   openModal('modal-form');
 }
@@ -1435,6 +1494,11 @@ function openEditTask(id){
   document.getElementById('f-tag').value=t.tag||'';
   document.getElementById('f-sprint').value=t.sprint||'';
   document.getElementById('f-kr').value=t.kr||'';
+  document.getElementById('f-reviewer').value=t.reviewer||'';
+  const isBlocked=!!t.blocked;
+  document.getElementById('f-blocked').checked=isBlocked;
+  document.getElementById('f-blocked-reason').value=t.blockedReason||'';
+  document.getElementById('f-blocked-wrap').style.display=isBlocked?'':'none';
   document.getElementById('btn-delete-task').classList.remove('hidden');
   closeModal('modal-detail');openModal('modal-form');
 }
@@ -1443,7 +1507,26 @@ async function saveTask(){
   if(!title){document.getElementById('f-title').focus();return;}
   const id=editId||genId();
   const ex=editId?(tasks[editId]||{}):{};
-  const t={id,title,desc:document.getElementById('f-desc').value.trim(),status:document.getElementById('f-status').value,priority:document.getElementById('f-priority').value,assignee:document.getElementById('f-assignee').value.trim(),due:document.getElementById('f-due').value,tag:document.getElementById('f-tag').value.trim(),sprint:document.getElementById('f-sprint').value||null,kr:document.getElementById('f-kr').value||null,createdAt:ex.createdAt||Date.now(),updatedAt:Date.now(),comments:ex.comments||null};
+  const nowBlocked=document.getElementById('f-blocked').checked;
+  const wasBlocked=!!ex.blocked;
+  let blockedAt=ex.blockedAt||null, blockedMs=ex.blockedMs||0;
+  if(nowBlocked&&!wasBlocked) blockedAt=Date.now();
+  if(!nowBlocked&&wasBlocked){if(ex.blockedAt)blockedMs+=(Date.now()-ex.blockedAt);blockedAt=null;}
+  const t={id,title,
+    desc:document.getElementById('f-desc').value.trim(),
+    status:document.getElementById('f-status').value,
+    priority:document.getElementById('f-priority').value,
+    assignee:document.getElementById('f-assignee').value.trim(),
+    reviewer:document.getElementById('f-reviewer').value.trim()||null,
+    due:document.getElementById('f-due').value,
+    tag:document.getElementById('f-tag').value.trim(),
+    sprint:document.getElementById('f-sprint').value||null,
+    kr:document.getElementById('f-kr').value||null,
+    blocked:nowBlocked,
+    blockedReason:nowBlocked?(document.getElementById('f-blocked-reason').value.trim()||null):null,
+    blockedAt:nowBlocked?blockedAt:null,
+    blockedMs:blockedMs||null,
+    createdAt:ex.createdAt||Date.now(),updatedAt:Date.now(),comments:ex.comments||null};
   closeModal('modal-form');badge('wait','Guardando...');
   await fbSet('tasks/'+id,t);
 }
@@ -1466,12 +1549,47 @@ function openDetail(id){
   const t=tasks[id];if(!t)return;detailId=id;
   document.getElementById('d-title').textContent=t.title||'--';
   const col=CMAP[t.status]||COLS[0];
-  document.getElementById('d-badges').innerHTML=`<span class="status-badge ${col.sc}">${col.lb}</span> <span class="status-badge" style="background:rgba(231,76,60,.1);color:var(--red)">${t.priority||'--'}</span>${t.sprint&&sprints[t.sprint]?` <span class="status-badge" style="background:rgba(3,43,67,.08);color:var(--navy-mid)">${esc(sprints[t.sprint].name)}</span>`:''}`;
+  const blockedBadge=t.blocked?`<span class="status-badge" style="background:rgba(231,76,60,.12);color:var(--red)">🚫 Bloqueada</span>`:'';
+  document.getElementById('d-badges').innerHTML=`<span class="status-badge ${col.sc}">${col.lb}</span> <span class="status-badge" style="background:rgba(231,76,60,.1);color:var(--red)">${t.priority||'--'}</span>${t.sprint&&sprints[t.sprint]?` <span class="status-badge" style="background:rgba(3,43,67,.08);color:var(--navy-mid)">${esc(sprints[t.sprint].name)}</span>`:''}${blockedBadge}`;
   document.getElementById('d-status-actions').innerHTML=COLS.map(c=>`<button class="btn-status ${c.id===t.status?'active':''}" style="background:${c.id===t.status?`color-mix(in srgb,${c.dot} 15%,white)`:'var(--gray-pale)'};color:${c.dot}" onclick="chgStatus('${id}','${c.id}')">${c.lb}</button>`).join('');
-  document.getElementById('d-meta').innerHTML=`<div><div class="detail-label">Responsable</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(t.assignee))}</span>${esc(t.assignee||'Sin asignar')}</div></div><div><div class="detail-label">Fecha limite</div><div class="detail-value ${dueCls(t.due)}" style="margin-top:2px">${t.due?fmtD(t.due):'--'}</div></div>${t.tag?`<div><div class="detail-label">Etiqueta</div><div style="margin-top:2px"><span class="list-tag">${esc(t.tag)}</span></div></div>`:''}<div><div class="detail-label">Creado</div><div class="detail-value" style="margin-top:2px">${tsL(t.createdAt)}</div></div>`;
+  const reviewerCell=t.reviewer
+    ?`<div><div class="detail-label">👁 Revisor</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(t.reviewer))}</span>${esc(t.reviewer)}</div></div>`
+    :'';
+  document.getElementById('d-meta').innerHTML=`<div><div class="detail-label">Responsable</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(t.assignee))}</span>${esc(t.assignee||'Sin asignar')}</div></div>${reviewerCell}<div><div class="detail-label">Fecha limite</div><div class="detail-value ${dueCls(t.due)}" style="margin-top:2px">${t.due?fmtD(t.due):'--'}</div></div>${t.tag?`<div><div class="detail-label">Etiqueta</div><div style="margin-top:2px"><span class="list-tag">${esc(t.tag)}</span></div></div>`:''}<div><div class="detail-label">Creado</div><div class="detail-value" style="margin-top:2px">${tsL(t.createdAt)}</div></div>`;
+  // Banner de impedimento
+  let blkWrap=document.getElementById('d-blocked-banner');
+  if(!blkWrap){blkWrap=document.createElement('div');blkWrap.id='d-blocked-banner';const ds=document.getElementById('d-desc-section');ds.parentNode.insertBefore(blkWrap,ds);}
+  if(t.blocked){
+    const days=t.blockedAt?Math.max(1,Math.ceil((Date.now()-t.blockedAt)/86400000)):1;
+    const dColor=days>=7?'var(--red)':days>=3?'var(--orange)':'var(--navy)';
+    blkWrap.innerHTML=`<div style="margin-bottom:10px;padding:9px 12px;background:rgba(231,76,60,.06);border:1px solid rgba(231,76,60,.22);border-radius:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:800;color:var(--red)">🚫 Bloqueada</span>
+      <span style="font-size:11px;font-weight:700;color:${dColor}">${days} día${days!==1?'s':''}</span>
+      <span style="flex:1;font-size:12px;color:var(--text)">${esc(t.blockedReason||'Sin motivo registrado')}</span>
+      <button onclick="quickUnblock('${id}')" style="padding:3px 10px;background:var(--green);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">✓ Desbloquear</button>
+    </div>`;
+  }else{
+    blkWrap.innerHTML=`<div style="margin-bottom:8px;text-align:right">
+      <button onclick="quickBlock('${id}')" style="padding:3px 10px;background:none;border:1px solid rgba(231,76,60,.3);color:var(--red);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🚫 Marcar bloqueada</button>
+    </div>`;
+  }
   const ds=document.getElementById('d-desc-section');ds.style.display=t.desc?'':'none';
   document.getElementById('d-desc').textContent=t.desc||'';
   renderCmts(t);openModal('modal-detail');
+}
+async function quickBlock(id){
+  const reason=prompt('¿Qué bloquea esta tarea?\n(Ej: falta VoBo, espera proveedor, dependencia externa)');
+  if(reason===null)return;
+  badge('wait','Marcando impedimento...');
+  await db.ref('tasks/'+id).update({blocked:true,blockedReason:reason.trim()||'Sin motivo',blockedAt:Date.now(),updatedAt:Date.now()});
+  setTimeout(()=>{if(detailId===id&&tasks[id])openDetail(id);},200);
+}
+async function quickUnblock(id){
+  const t=tasks[id];if(!t)return;
+  const ms=(t.blockedMs||0)+(t.blockedAt?Date.now()-t.blockedAt:0);
+  badge('wait','Desbloqueando...');
+  await db.ref('tasks/'+id).update({blocked:false,blockedReason:null,blockedAt:null,blockedMs:ms,updatedAt:Date.now()});
+  setTimeout(()=>{if(detailId===id&&tasks[id])openDetail(id);},200);
 }
 function renderCmts(t){
   const list=document.getElementById('d-cmt-list');const cnt=document.getElementById('d-cmt-count');
@@ -1733,6 +1851,27 @@ function todayMs(){const t=new Date();t.setHours(0,0,0,0);return t.getTime();}
 // Backlog, Por hacer y En progreso cuentan como SIN COMPLETAR.
 function isSprintDone(t){return t&&(t.status==='done'||t.status==='review');}
 
+// ── Checkbox bloqueo toggle ──
+document.addEventListener('change',e=>{
+  if(e.target.id==='f-blocked')
+    document.getElementById('f-blocked-wrap').style.display=e.target.checked?'':'none';
+});
+
+// ── Línea base de compromiso al activar sprint ──
+async function captureBaseline(sprintId){
+  if(!db||!sprintId)return;
+  if(sprintBaselines[sprintId])return; // no sobreescribir
+  const committed={};
+  Object.entries(tasks).forEach(([k,t])=>{
+    if(t.sprint===sprintId&&!isSprintDone(t))
+      committed[k]={title:t.title||'',assignee:t.assignee||'Sin asignar',status:t.status||''};
+  });
+  try{
+    await db.ref('sprintBaseline/'+sprintId).set({sprintId,capturedAt:Date.now(),count:Object.keys(committed).length,tasks:committed});
+    console.log('[baseline] capturada:',sprintId,Object.keys(committed).length,'tareas');
+  }catch(e){console.error('[baseline] FAILED:',e);}
+}
+
 function sprintIsToday(sp){
   if(!sp||!sp.start||!sp.end)return false;
   const now=todayMs();
@@ -1820,6 +1959,7 @@ async function activateSprint(id){
   updates['sprints/'+id+'/active']=true;
   badge('wait','Activando...');
   await db.ref().update(updates);
+  await captureBaseline(id);
 }
 
 // ── Editar sprint (incluye sprints cerrados) ──
@@ -1891,13 +2031,28 @@ async function closeSprint(id){
   const doneTasks=sprintTasks.filter(isSprintDone);
   const pendingTasks=sprintTasks.filter(t=>!isSprintDone(t));
 
-  // Calcular completadas por persona
+  // Calcular completadas por persona (done + review, con etiqueta)
   const byPerson={};
   doneTasks.forEach(t=>{
     const p=t.assignee||'Sin asignar';
-    if(!byPerson[p])byPerson[p]={done:0,titles:[]};
-    byPerson[p].done++;
-    byPerson[p].titles.push((t.title||'')+(t.status==='review'?' · En revisión':''));
+    if(!byPerson[p])byPerson[p]={done:0,review:0,titles:[],reviewTitles:[]};
+    if(t.status==='review'){byPerson[p].review++;byPerson[p].reviewTitles.push(t.title||'');}
+    else{byPerson[p].done++;byPerson[p].titles.push(t.title||'');}
+  });
+
+  // Días bloqueados acumulados en este sprint
+  const blockedInSprint=allTasks.filter(t=>t.sprint===id&&(t.blockedMs||t.blocked));
+  const totalBlockedDays=Math.round(blockedInSprint.reduce((a,t)=>{
+    let ms=t.blockedMs||0;
+    if(t.blocked&&t.blockedAt)ms+=Date.now()-t.blockedAt;
+    return a+ms;
+  },0)/86400000);
+  const blockedByPerson={};
+  blockedInSprint.forEach(t=>{
+    const p=t.assignee||'Sin asignar';
+    let ms=t.blockedMs||0;
+    if(t.blocked&&t.blockedAt)ms+=Date.now()-t.blockedAt;
+    blockedByPerson[p]=(blockedByPerson[p]||0)+ms;
   });
 
   // Buscar siguiente sprint (futuro más próximo)
@@ -1938,9 +2093,11 @@ async function closeSprint(id){
     doneTasks:doneTasks.length,
     pendingTasks:pendingTasks.length,
     completionPct:sprintTasks.length?Math.round(doneTasks.length/sprintTasks.length*100):0,
+    totalBlockedDays,
+    blockedByPerson,
     byPerson,
-    doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||''})),
-    pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||''}))
+    doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||'',reviewer:t.reviewer||null})),
+    pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',reviewer:t.reviewer||null,blocked:!!t.blocked,blockedReason:t.blockedReason||null}))
   };
 
   // 3) Mover tareas pendientes al siguiente sprint
@@ -2220,107 +2377,147 @@ function renderSprintLog(){
     return;
   }
 
-  // ── Reclasificación al vuelo de snapshots guardados ──
-  // Los snapshots viejos pueden tener tareas "En revisión" dentro de
-  // pendingTasksList (se cerraron con la regla anterior). Al mostrar, esas
-  // tareas se pasan a COMPLETADAS con la etiqueta "En revisión" y se ajustan
-  // los contadores y el %.
+  // ── Reclasificación al vuelo (review siempre = completada) ──
   function adjustHist(h){
-    const completedByPerson=JSON.parse(JSON.stringify(h.byPerson||{}));
+    const byP=JSON.parse(JSON.stringify(h.byPerson||{}));
     const pendingList=[];
     let reclass=0;
     (h.pendingTasksList||[]).forEach(t=>{
       if(t.status==='review'){
         const p=t.assignee||'Sin asignar';
-        if(!completedByPerson[p])completedByPerson[p]={done:0,titles:[]};
-        completedByPerson[p].done++;
-        completedByPerson[p].titles.push((t.title||'')+' · En revisión');
+        if(!byP[p])byP[p]={done:0,review:0,titles:[],reviewTitles:[]};
+        byP[p].review=(byP[p].review||0)+1;
+        byP[p].reviewTitles=byP[p].reviewTitles||[];
+        byP[p].reviewTitles.push(t.title||'');
         reclass++;
       }else{
         pendingList.push(t);
       }
     });
-    const done=(h.doneTasks||0)+reclass;
+    // Normalizar formato viejo (solo done+titles, con " · En revisión" embebido)
+    Object.keys(byP).forEach(p=>{
+      const d=byP[p];
+      if(!('review' in d)){d.review=0;d.reviewTitles=[];}
+      if(d.titles&&d.titles.some(t=>t.endsWith(' · En revisión'))){
+        const cleaned=[],rev=[];
+        d.titles.forEach(t=>{if(t.endsWith(' · En revisión')){rev.push(t.replace(' · En revisión',''));d.review++;d.done=Math.max(0,(d.done||1)-1);}else cleaned.push(t);});
+        d.titles=cleaned;d.reviewTitles=[...rev,...(d.reviewTitles||[])];
+      }
+    });
+    const done=Object.values(byP).reduce((a,d)=>a+(d.done||0)+(d.review||0),0);
     const total=(h.totalTasks!=null)?h.totalTasks:done+pendingList.length;
     const pct=total?Math.round(done/total*100):0;
-    return{done,total,pending:pendingList.length,pct,completedByPerson,pendingList};
+    return{done,total,pending:pendingList.length,pct,byP,pendingList};
   }
+
   const adjMap={};
   history.forEach(h=>{adjMap[h.sprintId||h.sprintName]=adjustHist(h);});
   const adjOf=h=>adjMap[h.sprintId||h.sprintName];
 
-  // Resumen global (con reclasificación aplicada)
+  // ── Tendencia por persona (sparkline) ──
+  const chronoHistory=[...history].sort((a,b)=>a.closedAt-b.closedAt);
+  const personTrend={};
+  chronoHistory.forEach(h=>{
+    const adj=adjOf(h);
+    const allP=new Set([...Object.keys(adj.byP),...adj.pendingList.map(t=>t.assignee||'Sin asignar')]);
+    allP.forEach(p=>{
+      const d=adj.byP[p]||{done:0,review:0};
+      const donePerson=(d.done||0)+(d.review||0);
+      const pendPerson=adj.pendingList.filter(t=>(t.assignee||'Sin asignar')===p).length;
+      const tot=donePerson+pendPerson;
+      const pct=tot?Math.round(donePerson/tot*100):null;
+      if(!personTrend[p])personTrend[p]=[];
+      personTrend[p].push({sprintName:h.sprintName,pct});
+    });
+  });
+
+  function sparkline(data){
+    const pts=data.slice(-8);
+    if(pts.length<2)return pts.length===1?`<span style="font-size:10px;color:var(--gray)">${pts[0].pct!=null?pts[0].pct+'%':'—'}</span>`:'';
+    const W=64,H=22,pad=2;
+    const vals=pts.map(p=>p.pct!=null?p.pct:0);
+    const mn=Math.min(...vals),mx=Math.max(...vals);
+    const range=mx-mn||1;
+    const xs=vals.map((_,i)=>pad+i*(W-2*pad)/(vals.length-1));
+    const ys=vals.map(v=>H-pad-(v-mn)/range*(H-2*pad));
+    const polyline=xs.map((x,i)=>`${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+    const lastPct=pts[pts.length-1].pct;
+    const lColor=lastPct==null?'var(--gray)':lastPct>=80?'var(--green)':lastPct>=50?'var(--orange)':'var(--red)';
+    return`<svg width="${W}" height="${H}" style="overflow:visible" title="${pts.map(p=>p.sprintName+': '+(p.pct!=null?p.pct+'%':'—')).join(' | ')}">
+      <polyline points="${polyline}" fill="none" stroke="${lColor}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${xs[xs.length-1].toFixed(1)}" cy="${ys[ys.length-1].toFixed(1)}" r="2.5" fill="${lColor}"/>
+    </svg><span style="font-size:10px;font-weight:700;color:${lColor};margin-left:3px">${lastPct!=null?lastPct+'%':'—'}</span>`;
+  }
+
+  // ── Resumen global ──
   const totalDone=history.reduce((a,h)=>a+adjOf(h).done,0);
   const totalAll=history.reduce((a,h)=>a+adjOf(h).total,0);
   const avgPct=history.length?Math.round(history.reduce((a,h)=>a+adjOf(h).pct,0)/history.length):0;
+
   const globalByPerson={};
   history.forEach(h=>{
-    Object.entries(adjOf(h).completedByPerson).forEach(([p,d])=>{
-      if(!globalByPerson[p])globalByPerson[p]={done:0,sprints:0};
-      globalByPerson[p].done+=d.done||0;
-      globalByPerson[p].sprints++;
+    const adj=adjOf(h);
+    Object.entries(adj.byP).forEach(([p,d])=>{
+      if(!globalByPerson[p])globalByPerson[p]={done:0,review:0,pending:0};
+      globalByPerson[p].done+=(d.done||0);
+      globalByPerson[p].review+=(d.review||0);
     });
-  });
-
-  // Pendientes acumuladas por persona (para el resumen global)
-  const globalPendingByPerson={};
-  history.forEach(h=>{
-    adjOf(h).pendingList.forEach(t=>{
+    adj.pendingList.forEach(t=>{
       const p=t.assignee||'Sin asignar';
-      if(!globalPendingByPerson[p])globalPendingByPerson[p]=0;
-      globalPendingByPerson[p]++;
+      if(!globalByPerson[p])globalByPerson[p]={done:0,review:0,pending:0};
+      globalByPerson[p].pending++;
     });
   });
-  // Unir todos los miembros conocidos
-  const allGlobalTeam=new Set([...config.assignees,...Object.keys(globalByPerson),...Object.keys(globalPendingByPerson)]);
+  const allGlobalTeam=new Set([...config.assignees,...Object.keys(globalByPerson)]);
 
-  const personRows=[...allGlobalTeam].sort((a,b)=>{
-    const da=(globalByPerson[a]?.done||0); const db_=(globalByPerson[b]?.done||0);
-    return db_-da;
-  }).map(p=>{
-    const d=globalByPerson[p]||{done:0,sprints:0};
-    const pend=globalPendingByPerson[p]||0;
-    const total=d.done+pend;
-    const pct=total?Math.round(d.done/total*100):null;
+  const personRows=[...allGlobalTeam].sort().map(p=>{
+    const d=globalByPerson[p]||{done:0,review:0,pending:0};
+    const completedTotal=(d.done||0)+(d.review||0);
+    const total=completedTotal+(d.pending||0);
+    const pct=total?Math.round(completedTotal/total*100):null;
     const barColor=pct===null?'var(--gray-light)':pct>=80?'var(--green)':pct>=50?'var(--orange)':'var(--red)';
-    const pendBadge=pend?`<span style="font-size:9px;font-weight:700;color:var(--orange);margin-left:4px">${pend}⏳</span>`:'';
-    const noBadge=(!d.done&&!pend)?`<span style="font-size:9px;color:var(--gray);margin-left:4px">sin tareas</span>`:'';
-    return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
-      <div style="width:110px;font-size:12px;font-weight:600;color:${d.done?'var(--text)':'var(--gray-mid)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p)}</div>
-      <div style="flex:1;height:8px;background:var(--gray-light);border-radius:4px;overflow:hidden">
+    const trend=personTrend[p]?sparkline(personTrend[p]):'';
+    return`<div style="display:grid;grid-template-columns:110px 1fr auto auto 74px;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${completedTotal?'var(--text)':'var(--gray-mid)'}">${esc(p)}</div>
+      <div style="height:8px;background:var(--gray-light);border-radius:4px;overflow:hidden">
         <div style="width:${pct||0}%;height:100%;background:${barColor};border-radius:4px"></div>
       </div>
-      <div style="font-size:12px;font-weight:700;color:${d.done?'var(--navy)':'var(--gray)'};width:24px;text-align:right">${d.done}</div>
-      ${pendBadge}${noBadge}
-      <div style="font-size:10px;color:var(--gray);width:48px;white-space:nowrap">${d.sprints?d.sprints+' sprint'+(d.sprints!==1?'s':''):''}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--green);white-space:nowrap">${completedTotal}✓</div>
+      <div style="font-size:11px;color:var(--orange);white-space:nowrap">${d.pending?d.pending+'⏳':''}</div>
+      <div style="display:flex;align-items:center">${trend}</div>
     </div>`;
   }).join('');
 
   const summaryHTML=`<div class="dash-row" style="margin-bottom:18px;gap:14px;flex-wrap:wrap">
-    <div class="dash-card" style="flex:2;min-width:240px">
-      <div class="section-title" style="margin-bottom:12px">📊 Resumen global</div>
+    <div class="dash-card" style="flex:1;min-width:280px">
+      <div class="section-title" style="margin-bottom:12px">📊 Resumen global del equipo</div>
       <div style="display:flex;gap:14px;margin-bottom:16px">
         <div style="flex:1;text-align:center;padding:10px;background:var(--gray-pale);border-radius:8px">
           <div style="font-size:20px;font-weight:800;color:var(--green)">${totalDone}</div>
-          <div style="font-size:10px;color:var(--gray);font-weight:600;text-transform:uppercase">Total completadas</div>
+          <div style="font-size:10px;color:var(--gray);font-weight:600;text-transform:uppercase">Completadas</div>
         </div>
         <div style="flex:1;text-align:center;padding:10px;background:var(--gray-pale);border-radius:8px">
           <div style="font-size:20px;font-weight:800;color:var(--navy)">${history.length}</div>
-          <div style="font-size:10px;color:var(--gray);font-weight:600;text-transform:uppercase">Sprints cerrados</div>
+          <div style="font-size:10px;color:var(--gray);font-weight:600;text-transform:uppercase">Sprints</div>
         </div>
         <div style="flex:1;text-align:center;padding:10px;background:var(--gray-pale);border-radius:8px">
           <div style="font-size:20px;font-weight:800;color:${avgPct>=80?'var(--green)':avgPct>=50?'var(--orange)':'var(--red)'}">${avgPct}%</div>
-          <div style="font-size:10px;color:var(--gray);font-weight:600;text-transform:uppercase">% promedio</div>
+          <div style="font-size:10px;color:var(--gray);font-weight:600;text-transform:uppercase">Promedio</div>
         </div>
       </div>
-      <div class="section-title" style="font-size:10px;margin-bottom:8px">Por persona (acumulado)</div>
-      ${personRows||'<div style="font-size:12px;color:var(--gray)">Sin datos por persona</div>'}
+      <div style="display:grid;grid-template-columns:110px 1fr auto auto 74px;gap:8px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--gray-light)">
+        <div style="font-size:9px;font-weight:700;color:var(--gray);text-transform:uppercase">Persona</div>
+        <div style="font-size:9px;font-weight:700;color:var(--gray);text-transform:uppercase">% acumulado</div>
+        <div style="font-size:9px;font-weight:700;color:var(--green)">✓</div>
+        <div style="font-size:9px;font-weight:700;color:var(--orange)">⏳</div>
+        <div style="font-size:9px;font-weight:700;color:var(--gray);text-transform:uppercase">Tendencia →</div>
+      </div>
+      ${personRows||'<div style="font-size:12px;color:var(--gray)">Sin datos</div>'}
     </div>
   </div>`;
-
   // Lista de sprints cerrados
   const filteredHistory=selPerson
-    ?history.filter(h=>adjOf(h).completedByPerson[selPerson]||adjOf(h).pendingList.some(t=>(t.assignee||'Sin asignar')===selPerson))
+    ?history.filter(h=>adjOf(h).byP[selPerson]||adjOf(h).pendingList.some(t=>(t.assignee||'Sin asignar')===selPerson))
     :history;
 
   const sprintCards=filteredHistory.map(h=>{
@@ -2328,75 +2525,70 @@ function renderSprintLog(){
     const barColor=adj.pct>=80?'var(--green)':adj.pct>=50?'var(--orange)':'var(--red)';
     const closedFmt=h.closedAt?new Date(h.closedAt).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
 
-    // ── Tabla completa por persona ──────────────────────────────────────────
-    // Personas que completaron tareas (snapshot byPerson + reclasificadas "En revisión")
-    const completedByPerson=adj.completedByPerson;
-
-    // Personas con tareas REALMENTE pendientes (backlog / por hacer / en progreso)
+    // ── Tabla por persona ─────────────────────────────────────────────────
+    const byP=adj.byP;
+    // Pendientes reales (no review) agrupadas por persona con estatus
     const pendingByPerson={};
     adj.pendingList.forEach(t=>{
       const p=t.assignee||'Sin asignar';
       if(!pendingByPerson[p])pendingByPerson[p]=[];
-      const stLb=t.status&&CMAP[t.status]?' · '+CMAP[t.status].lb:'';
-      pendingByPerson[p].push((t.title||'')+stLb);
+      const stLb=CMAP[t.status]?' · '+CMAP[t.status].lb:'';
+      const blkTag=t.blocked?' 🚫':'';
+      pendingByPerson[p].push((t.title||'')+stLb+blkTag);
     });
 
-    // Todos los assignees del equipo (config) + quienes aparecen en el sprint
-    const allTeam=new Set([
-      ...config.assignees,
-      ...Object.keys(completedByPerson),
-      ...Object.keys(pendingByPerson)
-    ]);
-
-    // Filtrar si hay selección de persona
+    const allTeam=new Set([...config.assignees,...Object.keys(byP),...Object.keys(pendingByPerson)]);
     const teamList=selPerson?[selPerson]:[...allTeam].sort();
 
     const personRows=teamList.map(p=>{
-      const done=completedByPerson[p];
+      const d=byP[p];
       const pending=pendingByPerson[p];
-      const hasDone=!!done;
-      const hasPending=!!pending;
+      const doneCnt=(d?.done||0);
+      const reviewCnt=(d?.review||0);
+      const totalDone=doneCnt+reviewCnt;
+      const pendCnt=pending?pending.length:0;
+      const total=totalDone+pendCnt;
+      const pct=total?Math.round(totalDone/total*100):null;
+      const pctColor=pct===null?'var(--gray)':pct===100?'var(--green)':pct>=60?'var(--orange)':'var(--red)';
 
-      if(hasDone&&hasPending){
-        // Completó algo pero también dejó pendientes
-        const pct=Math.round(done.done/(done.done+pending.length)*100);
-        return`<tr style="background:rgba(251,133,0,.04)">
-          <td style="padding:6px 8px;font-size:11px;font-weight:700;color:var(--text)">${esc(p)}</td>
-          <td style="padding:6px 8px;text-align:center"><span style="font-size:11px;font-weight:700;color:var(--orange)">${done.done}✓ / ${pending.length}⏳</span></td>
-          <td style="padding:6px 8px;font-size:10px;color:var(--gray)" title="${esc(done.titles.join(', '))}">✅ ${esc(done.titles.join(', '))}</td>
-          <td style="padding:6px 8px;font-size:10px;color:var(--orange)" title="${esc(pending.join(', '))}">⏳ ${esc(pending.join(', '))}</td>
-        </tr>`;
-      } else if(hasDone){
-        // Solo completó, sin pendientes
-        return`<tr>
-          <td style="padding:6px 8px;font-size:11px;font-weight:700;color:var(--text)">${esc(p)}</td>
-          <td style="padding:6px 8px;text-align:center"><span style="font-size:12px;font-weight:800;color:var(--green)">${done.done} ✓</span></td>
-          <td style="padding:6px 8px;font-size:10px;color:var(--gray)" colspan="2" title="${esc(done.titles.join(', '))}">${esc(done.titles.join(', '))}</td>
-        </tr>`;
-      } else if(hasPending){
-        // Solo pendientes, nada completado
-        return`<tr style="background:rgba(231,76,60,.04)">
-          <td style="padding:6px 8px;font-size:11px;font-weight:700;color:var(--red)">${esc(p)}</td>
-          <td style="padding:6px 8px;text-align:center"><span style="font-size:11px;font-weight:700;color:var(--red)">0✓ / ${pending.length}⏳</span></td>
-          <td style="padding:6px 8px;font-size:10px;color:var(--orange)" colspan="2" title="${esc(pending.join(', '))}">${esc(pending.join(', '))}</td>
-        </tr>`;
-      } else {
-        // Miembro del equipo sin ninguna tarea asignada en este sprint
-        return`<tr style="background:rgba(0,0,0,.02)">
-          <td style="padding:6px 8px;font-size:11px;font-weight:600;color:var(--gray-mid)">${esc(p)}</td>
-          <td style="padding:6px 8px;text-align:center"><span style="font-size:10px;color:var(--gray)">— sin tareas</span></td>
-          <td style="padding:6px 8px;font-size:10px;color:var(--gray)" colspan="2">Sin tareas asignadas en este sprint</td>
-        </tr>`;
-      }
+      // Celdas de completadas y en revisión
+      const doneTitles=d?.titles||[];
+      const reviewTitles=d?.reviewTitles||[];
+
+      const doneCell=doneCnt
+        ?`<div style="font-size:10px;color:var(--text)">${doneTitles.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(16,185,129,.1);border-radius:4px">✅ ${esc(t)}</span>`).join('')}</div>`:'';
+      const reviewCell=reviewCnt
+        ?`<div style="font-size:10px;color:var(--navy-mid);margin-top:${doneCnt?2:0}px">${reviewTitles.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(10,110,160,.1);border-radius:4px">👁 ${esc(t)}</span>`).join('')}</div>`:'';
+      const pendCell=pendCnt
+        ?`<div style="font-size:10px;color:var(--orange);margin-top:${(doneCnt||reviewCnt)?2:0}px">${pending.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(251,133,0,.1);border-radius:4px">⏳ ${esc(t)}</span>`).join('')}</div>`:'';
+
+      const rowBg=pendCnt&&!totalDone?'rgba(231,76,60,.04)':pendCnt?'rgba(251,133,0,.04)':'';
+
+      return`<tr style="background:${rowBg};border-top:1px solid var(--gray-light)">
+        <td style="padding:7px 8px;font-size:11px;font-weight:700;color:${totalDone?'var(--text)':'var(--gray-mid)'}">
+          ${esc(p)}
+          ${h.blockedByPerson&&h.blockedByPerson[p]?`<div style="font-size:9px;color:var(--red);margin-top:1px">🚫 ${Math.round(h.blockedByPerson[p]/86400000)}d bloqueada</div>`:''}
+        </td>
+        <td style="padding:7px 8px;text-align:center;white-space:nowrap">
+          ${pct!==null?`<span style="font-size:12px;font-weight:800;color:${pctColor}">${pct}%</span><br>`:'' }
+          ${totalDone?`<span style="font-size:10px;color:var(--green)">${doneCnt?doneCnt+'✓':''} ${reviewCnt?''+reviewCnt+'👁':''}</span>`:''}
+          ${pendCnt?`<span style="font-size:10px;color:var(--orange)">${pendCnt}⏳</span>`:''}
+          ${!totalDone&&!pendCnt?'<span style="font-size:10px;color:var(--gray)">—</span>':''}
+        </td>
+        <td style="padding:7px 8px">${doneCell}${reviewCell}${pendCell}</td>
+      </tr>`;
     }).join('');
+
+    // ── Días bloqueados del sprint ──
+    const blockedDaysTag=h.totalBlockedDays
+      ?`<span style="padding:2px 8px;background:rgba(231,76,60,.1);color:var(--red);border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">🚫 ${h.totalBlockedDays}d bloqueadas</span>`:'';
 
     const personTable=`
       <table style="width:100%;border-collapse:collapse;margin-top:10px;border-radius:8px;overflow:hidden;border:1px solid var(--gray-light)">
         <thead><tr style="background:var(--navy)">
-          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left;width:22%">Persona</th>
-          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:center;width:14%">Resultado</th>
-          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left">✅ Completadas</th>
-          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left">⏳ Pendientes</th>
+          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left;width:18%">Persona</th>
+          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:center;width:12%">% Cumpl.</th>
+          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left">✅ Completadas · 👁 En revisión · ⏳ Pendientes (con estatus)</th>
         </tr></thead>
         <tbody>${personRows}</tbody>
       </table>`;
@@ -2409,13 +2601,14 @@ function renderSprintLog(){
         <div style="flex:1;min-width:140px">
           <div style="font-size:14px;font-weight:700;color:var(--navy)">${esc(h.sprintName)}</div>
           <div style="font-size:11px;color:var(--gray);margin-top:2px">${fmtD(h.sprintStart)} → ${fmtD(h.sprintEnd)}</div>
-          <div style="font-size:10px;color:var(--gray-mid);margin-top:2px">Cerrado: ${closedFmt}${h.recalculatedAt?' · ↺ recalculado '+new Date(h.recalculatedAt).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}):''}</div>
+          <div style="font-size:10px;color:var(--gray-mid);margin-top:2px">Cerrado: ${closedFmt}${h.recalculatedAt?' · ↺ recalc. '+new Date(h.recalculatedAt).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}):''}</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${pendingBadge}
+          ${blockedDaysTag}
           <span style="padding:2px 10px;background:rgba(16,185,129,.15);color:var(--green);border-radius:12px;font-size:11px;font-weight:700">${adj.done}/${adj.total} ✓</span>
           <span style="padding:2px 10px;background:${barColor}22;color:${barColor};border-radius:12px;font-size:11px;font-weight:700">${adj.pct}%</span>
-          <button onclick="recalcSprintHistory('${esc(h.sprintId)}')" title="Recalcular con estatus actuales (Completado + En revisión = completadas)" style="padding:2px 8px;background:none;border:1px solid var(--gray-light);border-radius:8px;font-size:10px;font-weight:700;color:var(--gray);cursor:pointer">↺ Recalcular</button>
+          <button onclick="recalcSprintHistory('${esc(h.sprintId)}')" title="Recalcular historial" style="padding:2px 8px;background:none;border:1px solid var(--gray-light);border-radius:8px;font-size:10px;font-weight:700;color:var(--gray);cursor:pointer">↺ Recalc.</button>
         </div>
       </div>
       <div style="height:6px;background:var(--gray-light);border-radius:3px;margin-bottom:10px;overflow:hidden">
@@ -2424,7 +2617,6 @@ function renderSprintLog(){
       ${personTable}
     </div>`;
   }).join('');
-
   container.innerHTML=summaryHTML+
     `<div class="section-title" style="margin-bottom:10px">🗂 Detalle por sprint ${selPerson?`— ${esc(selPerson)}`:''}</div>`+
     (sprintCards||'<div class="empty-state"><div class="empty-icon">🔍</div>Sin resultados para este filtro</div>');
