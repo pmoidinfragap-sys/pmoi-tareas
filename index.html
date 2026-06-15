@@ -1020,7 +1020,13 @@ async function initFB(){
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
-async function fbSet(p,v){if(db) await db.ref(p).set(v);}
+async function fbSet(p,v){
+  if(!db)return;
+  // Firebase rechaza campos con valor undefined; limpiar el objeto antes de enviar
+  const clean=obj=>JSON.parse(JSON.stringify(obj,(k,val)=>val===undefined?null:val));
+  try{await db.ref(p).set(typeof v==='object'&&v!==null?clean(v):v);badge('ok','Guardado');}
+  catch(e){console.error('[fbSet] FAILED',p,e);badge('wait','Error: '+e.message);}
+}
 async function fbDel(p){if(db) await db.ref(p).remove();}
 function genId(){return 'x'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -1555,8 +1561,21 @@ async function saveTask(){
     blockedAt:nowBlocked?blockedAt:null,
     blockedMs:blockedMs||null,
     createdAt:ex.createdAt||Date.now(),updatedAt:Date.now(),comments:ex.comments||null};
+  // Limpiar campos vacíos — Firebase Realtime DB no acepta undefined y los null
+  // en campos opcionales pueden causar problemas; los eliminamos del objeto
+  const tClean=Object.fromEntries(Object.entries(t).filter(([,v])=>v!==null&&v!==undefined&&v!==''));
+  // Preservar campos booleanos false y números 0
+  const tFinal={...tClean,
+    blocked:!!t.blocked,
+    createdAt:t.createdAt,
+    updatedAt:t.updatedAt,
+    id:t.id,
+    title:t.title,
+    status:t.status,
+    priority:t.priority
+  };
   closeModal('modal-form');badge('wait','Guardando...');
-  await fbSet('tasks/'+id,t);
+  await fbSet('tasks/'+id,tFinal);
 }
 async function deleteTask(){
   if(!editId||!confirm('Eliminar esta tarea?'))return;
