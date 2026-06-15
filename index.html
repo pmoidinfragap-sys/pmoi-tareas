@@ -1255,19 +1255,33 @@ function renderDash(){
     }).join('');
   }
 
-  // Sprints pasados cerrados
+  // Sprints pasados cerrados — usa snapshot del historial como fuente de verdad
   if(pastSprints.length){
     if(futureSprints.length)histHTML+=`<div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--gray);margin:10px 0 6px">Cerrados</div>`;
+    else histHTML+=`<div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--gray);margin-bottom:6px">Cerrados</div>`;
     histHTML+=pastSprints.slice(0,6).map(s=>{
-      const sT=all.filter(t=>t.sprint===s.id);
-      const sD=sT.filter(isSprintDone).length;
-      const pct=sT.length?Math.round(sD/sT.length*100):0;
+      // Usar el snapshot guardado para que coincida con la pestaña de Sprints
+      const snap=sprintHistory[s.id];
+      let sDone,sTotal,pct;
+      if(snap&&snap.totalTasks!=null){
+        // Reclasificar review en pendingTasksList (misma lógica que adjustHist)
+        const reviewInPending=(snap.pendingTasksList||[]).filter(t=>t.status==='review'||t.status==='done').length;
+        sDone=(snap.doneTasks||0)+reviewInPending;
+        sTotal=snap.totalTasks||0;
+        pct=sTotal?Math.round(sDone/sTotal*100):0;
+      }else{
+        // Fallback para sprints sin snapshot: incluir movedFromSprint
+        const sT=all.filter(t=>t.sprint===s.id||t.movedFromSprint===s.id);
+        sDone=sT.filter(isSprintDone).length;
+        sTotal=sT.length;
+        pct=sTotal?Math.round(sDone/sTotal*100):0;
+      }
       const barColor=pct>=80?'var(--green)':pct>=50?'var(--orange)':'var(--red)';
       return`<div class="sprint-hist-item" style="flex-direction:column;align-items:stretch;gap:5px;cursor:default">
         <div style="display:flex;align-items:center;gap:6px">
           <div class="sprint-hist-name" style="flex:1">${esc(s.name)}</div>
-          <div class="sprint-hist-done">${sD} ✓</div>
-          <div class="sprint-hist-total">/ ${sT.length}</div>
+          <div class="sprint-hist-done">${sDone} ✓</div>
+          <div class="sprint-hist-total">/ ${sTotal}</div>
           <div style="font-size:10px;font-weight:700;color:${barColor}">${pct}%</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
