@@ -2459,17 +2459,18 @@ function renderSprintLog(){
     const pts=data.slice(-8);
     const lastPct=pts.length?pts[pts.length-1].pct:null;
     const lColor=lastPct==null?'var(--gray)':lastPct>=80?'var(--green)':lastPct>=60?'var(--orange)':'var(--red)';
-    // Flecha de tendencia: comparar último vs penúltimo punto real
+    // Flecha: comparar último vs penúltimo punto real
     const realPts=pts.filter(p=>p.pct!=null);
     let arrow='';
     if(realPts.length>=2){
       const diff=realPts[realPts.length-1].pct-realPts[realPts.length-2].pct;
-      if(diff>0)arrow=`<span style="color:var(--green);font-size:11px;font-weight:800;margin-left:1px">↑</span>`;
-      else if(diff<0)arrow=`<span style="color:var(--red);font-size:11px;font-weight:800;margin-left:1px">↓</span>`;
-      else arrow=`<span style="color:var(--gray);font-size:11px;margin-left:1px">→</span>`;
+      if(diff>0)arrow=`<span style="color:var(--green);font-size:11px;font-weight:800;line-height:1">↑</span>`;
+      else if(diff<0)arrow=`<span style="color:var(--red);font-size:11px;font-weight:800;line-height:1">↓</span>`;
+      else arrow=`<span style="color:var(--gray);font-size:11px;line-height:1">→</span>`;
     }
-    if(pts.length<2)return pts.length===1?`<span style="font-size:10px;font-weight:700;color:${lColor}">${lastPct!=null?lastPct+'%':'—'}</span>${arrow}`:'';
-    const W=60,H=20,pad=2;
+    const pctLabel=`<span style="font-size:10px;font-weight:800;color:${lColor};white-space:nowrap">${lastPct!=null?lastPct+'%':'—'}</span>`;
+    if(pts.length<2)return `<div style="display:flex;align-items:center;gap:2px;overflow:hidden">${pctLabel}${arrow}</div>`;
+    const W=44,H=18,pad=2;
     const vals=pts.map(p=>p.pct!=null?p.pct:0);
     const mn=Math.min(...vals),mx=Math.max(...vals);
     const range=mx-mn||1;
@@ -2477,13 +2478,13 @@ function renderSprintLog(){
     const ys=vals.map(v=>H-pad-(v-mn)/range*(H-2*pad));
     const polyline=xs.map((x,i)=>`${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
     const title=pts.map(p=>p.sprintName+': '+(p.pct!=null?p.pct+'%':'—')).join(' | ');
-    return`<span style="display:flex;align-items:center;gap:2px" title="${esc(title)}">
-      <svg width="${W}" height="${H}" style="overflow:visible;flex-shrink:0">
-        <polyline points="${polyline}" fill="none" stroke="${lColor}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity=".7"/>
+    return`<div style="display:flex;align-items:center;gap:3px;overflow:hidden;min-width:0" title="${esc(title)}">
+      <svg width="${W}" height="${H}" style="overflow:hidden;flex-shrink:0">
+        <polyline points="${polyline}" fill="none" stroke="${lColor}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity=".8"/>
         <circle cx="${xs[xs.length-1].toFixed(1)}" cy="${ys[ys.length-1].toFixed(1)}" r="2.5" fill="${lColor}"/>
       </svg>
-      <span style="font-size:10px;font-weight:800;color:${lColor}">${lastPct!=null?lastPct+'%':'—'}</span>${arrow}
-    </span>`;
+      ${pctLabel}${arrow}
+    </div>`;
   }
 
   // ── Resumen global ──
@@ -2514,14 +2515,14 @@ function renderSprintLog(){
     const pct=total?Math.round(completedTotal/total*100):null;
     const barColor=pct===null?'var(--gray-light)':pct>=80?'var(--green)':pct>=50?'var(--orange)':'var(--red)';
     const trend=personTrend[p]?sparkline(personTrend[p]):'';
-    return`<div style="display:grid;grid-template-columns:110px 1fr auto auto 74px;align-items:center;gap:8px;margin-bottom:8px">
+    return`<div style="display:grid;grid-template-columns:110px 1fr auto auto 100px;align-items:center;gap:8px;margin-bottom:8px">
       <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${completedTotal?'var(--text)':'var(--gray-mid)'}">${esc(p)}</div>
       <div style="height:8px;background:var(--gray-light);border-radius:4px;overflow:hidden">
         <div style="width:${pct||0}%;height:100%;background:${barColor};border-radius:4px"></div>
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--green);white-space:nowrap">${completedTotal}✓</div>
       <div style="font-size:11px;color:var(--orange);white-space:nowrap">${d.pending?d.pending+'⏳':''}</div>
-      <div style="display:flex;align-items:center">${trend}</div>
+      <div style="display:flex;align-items:center;overflow:hidden;min-width:0">${trend}</div>
     </div>`;
   }).join('');
 
@@ -2542,7 +2543,7 @@ function renderSprintLog(){
           <div style="font-size:10px;color:var(--gray);font-weight:600;text-transform:uppercase">Promedio</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:110px 1fr auto auto 74px;gap:8px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--gray-light)">
+      <div style="display:grid;grid-template-columns:110px 1fr auto auto 100px;gap:8px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--gray-light)">
         <div style="font-size:9px;font-weight:700;color:var(--gray);text-transform:uppercase">Persona</div>
         <div style="font-size:9px;font-weight:700;color:var(--gray);text-transform:uppercase">% acumulado</div>
         <div style="font-size:9px;font-weight:700;color:var(--green)">✓</div>
