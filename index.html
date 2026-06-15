@@ -2945,17 +2945,18 @@ function renderSprintLog(){
       const reviewCntReal=reviewTitles.length;
 
       const doneCell=doneCntReal
-        ?`<div style="font-size:10px;color:var(--text)">${(d?.titles||[]).filter(Boolean).map((t,i)=>{
-          const collabs=((d.doneTasks||[])[i]?.collaborators||(doneTasks_raw||[])[i]?.collaborators||[]);
-          const collabPills=collabs.length?collabs.map(c=>`<span style="padding:0 5px;background:rgba(3,43,67,.08);border-radius:8px;font-size:9px;color:var(--navy-mid);white-space:nowrap">👥${esc(c)}</span>`).join(' '):'';;
-          return`<span style="display:inline-flex;align-items:center;gap:3px;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(16,185,129,.1);border-radius:4px;flex-wrap:wrap">✅ ${esc(t)}${collabPills?'&thinsp;'+collabPills:''}</span>`;
+        ?`<div style="font-size:10px;color:var(--text)">${doneTitles.map(title=>{
+          const snap=(h.doneTasksList||[]).find(ts=>ts.title===title);
+          const collabs=snap?.collaborators||[];
+          const collabPills=collabs.length?collabs.map(c=>`<span style="padding:0 5px;background:rgba(3,43,67,.08);border-radius:8px;font-size:9px;color:var(--navy-mid);white-space:nowrap">👥${esc(c)}</span>`).join(' '):'';
+          return`<span style="display:inline-flex;align-items:center;gap:3px;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(16,185,129,.1);border-radius:4px;flex-wrap:wrap">✅ ${esc(title)}${collabPills?'&thinsp;'+collabPills:''}</span>`;
         }).join('')}</div>`:'';
       const reviewCell=reviewCntReal
-        ?`<div style="font-size:10px;color:var(--navy-mid);margin-top:${doneCntReal?2:0}px">${(d?.reviewTitles||[]).filter(Boolean).map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(10,110,160,.1);border-radius:4px">👁 ${esc(t)}</span>`).join('')}</div>`:'';
+        ?`<div style="font-size:10px;color:var(--navy-mid);margin-top:${doneCntReal?2:0}px">${reviewTitles.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(10,110,160,.1);border-radius:4px">👁 ${esc(t)}</span>`).join('')}</div>`:'';
       const pendCell=pendCnt
         ?`<div style="font-size:10px;color:var(--orange);margin-top:${(doneCntReal||reviewCntReal)?2:0}px">${pending.map(t=>{
-          const collabs=(t.collaborators||[]);
-          const collabPills=collabs.length?collabs.map(c=>`<span style="padding:0 4px;background:rgba(251,133,0,.12);border-radius:8px;font-size:9px;white-space:nowrap">👥${esc(c)}</span>`).join(' '):'';;
+          const collabs=t.collaborators||[];
+          const collabPills=collabs.length?collabs.map(c=>`<span style="padding:0 4px;background:rgba(251,133,0,.12);border-radius:8px;font-size:9px;white-space:nowrap">👥${esc(c)}</span>`).join(' '):'';
           return`<span style="display:inline-flex;align-items:center;gap:3px;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(251,133,0,.1);border-radius:4px;flex-wrap:wrap">⏳ ${esc(t.title||t)}${collabPills?'&thinsp;'+collabPills:''}</span>`;
         }).join('')}</div>`:'';
 
