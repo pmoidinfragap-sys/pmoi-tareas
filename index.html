@@ -1026,7 +1026,7 @@ async function initFB(){
     badge('ok','Conectado');
     db.ref('tasks').on('value',s=>{tasks=s.val()||{};rebuildFilters();refresh();badge('ok','Sync');});
     db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[],areas:d.areas||[]};rebuildConfigSelects();});
-    db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();renderSprintModal();refresh();badge('ok','Sync');});
+    db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();renderSprintModal();refresh();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();badge('ok','Sync');});
     db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();badge('ok','Sync');});
     db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();renderDashDaily();badge('ok','Sync');});
     db.ref('sprintHistory').on('value',s=>{sprintHistory=s.val()||{};console.log('[sprintHistory] keys:',Object.keys(sprintHistory));renderSprintLog();});
@@ -1133,165 +1133,202 @@ document.getElementById('nav-okr').onclick=()=>showPage('okr');
 document.getElementById('nav-sprintlog').onclick=()=>{showPage('sprintlog');renderSprintLog();};
 document.getElementById('nav-calendar').onclick=()=>{showPage('calendar');renderCalendar();};
 document.getElementById('cal-today-btn').onclick=()=>{
-  const el=document.querySelector('.cal-week-row.cal-today-row');
-  if(el)el.scrollIntoView({behavior:'smooth',block:'center'});
+  // Buscar la fila de la semana actual por el outline navy
+  const rows=document.querySelectorAll('#cal-content [style*="navy-mid"]');
+  if(rows.length)rows[0].scrollIntoView({behavior:'smooth',block:'center'});
 };
 function renderCalendar(){
   const container=document.getElementById('cal-content');
   if(!container)return;
 
-  // ── Generar todas las semanas ISO del año 2026 ──────────────────────────
-  // Una semana ISO va de lunes a domingo.
-  // Semana 1 de 2026 = la semana que contiene el primer jueves de 2026
-  const YEAR=2026;
   const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const DAYS_SHORT=['L','M','X','J','V','S','D'];
 
-  function getISOWeek(d){
-    const tmp=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
-    const day=tmp.getUTCDay()||7;
-    tmp.setUTCDate(tmp.getUTCDate()+4-day);
-    const yearStart=new Date(Date.UTC(tmp.getUTCFullYear(),0,1));
-    return{week:Math.ceil((((tmp-yearStart)/86400000)+1)/7),year:tmp.getUTCFullYear()};
-  }
-  function isoWeekStart(year,week){
-    // Lunes de la semana ISO dada
-    const jan4=new Date(Date.UTC(year,0,4));
-    const dayOfWeek=jan4.getUTCDay()||7;
-    const weekStart=new Date(jan4);
-    weekStart.setUTCDate(jan4.getUTCDate()-(dayOfWeek-1)+(week-1)*7);
-    return weekStart;
-  }
-  function fmtShort(d){return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short'});}
-  function fmtDay(d){return d.toLocaleDateString('es-MX',{day:'2-digit'});}
+  // ── Todas las fechas se manejan en UTC para evitar bugs de timezone ──
+  // "hoy" en YYYY-MM-DD según la zona local del usuario
+  const nowLocal=new Date();
+  const todayStr=[
+    nowLocal.getFullYear(),
+    String(nowLocal.getMonth()+1).padStart(2,'0'),
+    String(nowLocal.getDate()).padStart(2,'0')
+  ].join('-');
 
-  // Construir mapa de semana ISO → sprint asignado
+  // Semana ISO de una fecha dada como "YYYY-MM-DD"
+  function isoWeekOfStr(iso){
+    const [y,m,d]=iso.split('-').map(Number);
+    const dt=new Date(Date.UTC(y,m-1,d));
+    const day=dt.getUTCDay()||7;
+    dt.setUTCDate(dt.getUTCDate()+4-day);
+    const yr=dt.getUTCFullYear();
+    const jan1=new Date(Date.UTC(yr,0,1));
+    const wk=Math.ceil((((dt-jan1)/86400000)+1)/7);
+    return{week:wk,year:yr};
+  }
+
+  // Siguiente día en ISO string
+  function nextDay(iso){
+    const [y,m,d]=iso.split('-').map(Number);
+    const dt=new Date(Date.UTC(y,m-1,d+1));
+    return dt.toISOString().slice(0,10);
+  }
+
+  // Añadir N días a un ISO string
+  function addDays(iso,n){
+    const [y,m,d]=iso.split('-').map(Number);
+    const dt=new Date(Date.UTC(y,m-1,d+n));
+    return dt.toISOString().slice(0,10);
+  }
+
+  // Formato display: "15 jun"
+  function fmtShortIso(iso){
+    const [y,m,d]=iso.split('-').map(Number);
+    return new Date(Date.UTC(y,m-1,d)).toLocaleDateString('es-MX',{day:'2-digit',month:'short',timeZone:'UTC'});
+  }
+
+  // Solo el día: "15"
+  function fmtDayIso(iso){return iso.slice(8);}
+
+  // Mes UTC de un ISO string
+  function monthOf(iso){return parseInt(iso.slice(5,7))-1;} // 0-based
+
+  // Lunes de la semana ISO en YYYY-MM-DD
+  function isoWeekMon(year,week){
+    const jan4=new Date(Date.UTC(year,0,4));
+    const dow=jan4.getUTCDay()||7;
+    const mon=new Date(jan4);
+    mon.setUTCDate(jan4.getUTCDate()-(dow-1)+(week-1)*7);
+    return mon.toISOString().slice(0,10);
+  }
+
+  // ── Mapa semana → sprint ──────────────────────────────────────────────
   const weekToSprint={};
   Object.values(sprints).forEach(sp=>{
     if(!sp.start||!sp.end)return;
-    const s=new Date(sp.start+'T00:00:00');
-    const e=new Date(sp.end+'T00:00:00');
-    for(let d=new Date(s);d<=e;d.setDate(d.getDate()+1)){
-      const {week,year}=getISOWeek(d);
+    let cur=sp.start;
+    while(cur<=sp.end){
+      const {week,year}=isoWeekOfStr(cur);
       const key=year+'-W'+String(week).padStart(2,'0');
       if(!weekToSprint[key])weekToSprint[key]=sp;
+      cur=nextDay(cur);
     }
   });
 
-  // Sprint activo y hoy
-  const today=new Date();today.setHours(0,0,0,0);
   const activeSprint=activeSp();
-  const {week:todayWeek,year:todayYear}=getISOWeek(today);
-  const todayKey=todayYear+'-W'+String(todayWeek).padStart(2,'0');
+  const {week:todayWeek,year:todayYear}=isoWeekOfStr(todayStr);
+  const todayWeekKey=todayYear+'-W'+String(todayWeek).padStart(2,'0');
 
-  // ── Construir tabla por mes ──────────────────────────────────────────────
-  // Iterar semanas ISO que tienen días en 2026
-  let html='';
-
-  // Obtener todas las semanas con días en 2026
+  // ── Generar semanas con días en 2026 ─────────────────────────────────
   const weeks=[];
-  // Desde la semana que contiene el 1 ene 2026 hasta la que contiene el 31 dic 2026
-  let cursor=new Date(Date.UTC(2026,0,1));
-  const end2026=new Date(Date.UTC(2026,11,31));
-  // Retroceder al lunes de esa semana
-  const startDay=cursor.getUTCDay()||7;
-  cursor.setUTCDate(cursor.getUTCDate()-(startDay-1));
+  // Empezar desde el lunes de la semana que contiene el 2026-01-01
+  const {week:w1,year:y1}=isoWeekOfStr('2026-01-01');
+  let monStr=isoWeekMon(y1,w1);
 
-  while(cursor<=end2026){
-    const mon=new Date(cursor);
-    const sun=new Date(cursor);sun.setUTCDate(sun.getUTCDate()+6);
-    const {week,year}=getISOWeek(mon);
+  while(true){
+    const sunStr=addDays(monStr,6);
+    // Parar si el lunes ya pasó del 31 dic 2026
+    if(monStr>'2026-12-31')break;
+    const {week,year}=isoWeekOfStr(monStr);
     const key=year+'-W'+String(week).padStart(2,'0');
-    weeks.push({week,year,key,mon:new Date(mon),sun:new Date(sun)});
-    cursor.setUTCDate(cursor.getUTCDate()+7);
+    // Generar los 7 días
+    const days=Array.from({length:7},(_,i)=>addDays(monStr,i));
+    weeks.push({week,year,key,monStr,sunStr,days});
+    monStr=addDays(monStr,7);
   }
 
-  // Agrupar semanas por mes (del lunes de cada semana)
+  // Agrupar por mes del lunes
   const byMonth={};
   weeks.forEach(w=>{
-    const m=w.mon.getUTCMonth(); // mes del lunes
+    const m=monthOf(w.monStr);
     if(!byMonth[m])byMonth[m]=[];
     byMonth[m].push(w);
   });
 
-  html+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;padding:0 2px">`;
+  // ── Renderizar cuadrícula mensual ────────────────────────────────────
+  let calHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px">';
 
-  Object.entries(byMonth).forEach(([m,wks])=>{
-    const monthName=MONTHS[parseInt(m)];
-    html+=`<div class="dash-card" style="padding:0;overflow:hidden">
+  Object.entries(byMonth).forEach(([mIdx,wks])=>{
+    const m=parseInt(mIdx);
+    calHTML+=`<div class="dash-card" style="padding:0;overflow:hidden">
       <div style="background:var(--navy);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:8px">
-        <span style="font-size:13px;font-weight:800;letter-spacing:.3px">${monthName}</span>
-        <span style="font-size:11px;font-weight:500;opacity:.6">2026</span>
+        <span style="font-size:13px;font-weight:800;letter-spacing:.3px">${MONTHS[m]}</span>
+        <span style="font-size:11px;font-weight:500;opacity:.55">2026</span>
         <div style="flex:1"></div>
-        <span style="font-size:10px;opacity:.5">${wks.length} semana${wks.length!==1?'s':''}</span>
+        <span style="font-size:10px;opacity:.45">${wks.length} sem.</span>
       </div>
       <div style="padding:8px">
-        <div style="display:grid;grid-template-columns:48px 1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:0;margin-bottom:4px">
-          <div style="font-size:9px;font-weight:700;color:var(--gray);text-transform:uppercase;padding:4px 6px">Sem.</div>
-          ${DAYS_SHORT.map((d,i)=>`<div style="font-size:9px;font-weight:700;color:${i>=5?'var(--navy-light)':'var(--gray)'};text-align:center;padding:4px 2px">${d}</div>`).join('')}
+        <div style="display:grid;grid-template-columns:46px repeat(7,1fr);margin-bottom:4px">
+          <div style="font-size:9px;font-weight:700;color:var(--gray);text-transform:uppercase;padding:2px 4px">Sem.</div>
+          ${DAYS_SHORT.map((d,i)=>`<div style="font-size:9px;font-weight:700;color:${i>=5?'var(--navy-light)':'var(--gray)'};text-align:center;padding:2px">${d}</div>`).join('')}
         </div>`;
 
     wks.forEach(w=>{
       const sp=weekToSprint[w.key];
-      const isToday=w.key===todayKey;
+      const isCurrentWeek=w.key===todayWeekKey;
       const isActive=sp&&activeSprint&&sp.id===activeSprint.id;
       const isClosed=sp&&sp.closed===true;
-      const isPast=w.sun<today&&!isActive;
 
-      // Color del sprint asignado
-      let sprintBg='transparent', sprintColor='var(--gray)', sprintLabel='';
+      let rowBg='transparent';
+      let sprintColor='var(--gray-mid)';
       if(sp){
-        if(isActive){sprintBg='rgba(251,133,0,.12)';sprintColor='var(--orange)';}
-        else if(isClosed){sprintBg='rgba(0,184,148,.08)';sprintColor='var(--green)';}
-        else{sprintBg='rgba(10,110,160,.08)';sprintColor='var(--navy-light)';}
-        sprintLabel=sp.name;
+        if(isActive){rowBg='rgba(251,133,0,.1)';sprintColor='var(--orange)';}
+        else if(isClosed){rowBg='rgba(0,184,148,.08)';sprintColor='var(--green)';}
+        else{rowBg='rgba(10,110,160,.07)';sprintColor='var(--navy-light)';}
       }
+      if(isCurrentWeek)rowBg='rgba(3,43,67,.07)';
 
-      // Generar 7 celdas de días
-      const dayCells=Array.from({length:7},(_,i)=>{
-        const d=new Date(w.mon);d.setUTCDate(d.getUTCDate()+i);
-        const inYear=d.getUTCFullYear()===2026;
-        const isThisMonth=d.getUTCMonth()===parseInt(m);
-        const dStr=d.toISOString().slice(0,10);
-        const isToday2=dStr===today.toISOString().slice(0,10);
+      // Número de sprint abreviado
+      const spLabel=sp?(()=>{
+        const nums=sp.name.replace(/[^0-9]/g,'');
+        return nums?'S'+nums:sp.name.slice(0,4);
+      })():'';
+
+      const dayCells=w.days.map((iso,i)=>{
+        const inYear=iso.startsWith('2026');
+        const dayMonth=monthOf(iso);
+        const inMonth=dayMonth===m;
+        const isToday=iso===todayStr;
         const isWeekend=i>=5;
-        return`<div style="text-align:center;padding:3px 2px;font-size:11px;font-weight:${isToday2?'800':'400'};color:${!inYear||!isThisMonth?'var(--gray-mid)':isToday2?'#fff':isWeekend?'var(--navy-light)':'var(--text)'};background:${isToday2?'var(--navy)':'transparent'};border-radius:${isToday2?'50%':'0'};width:22px;height:22px;display:flex;align-items:center;justify-content:center;margin:0 auto">${inYear?fmtDay(d):''}</div>`;
+        const dayNum=fmtDayIso(iso);
+        return`<div style="text-align:center;padding:2px 1px">
+          <div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;
+            font-size:11px;font-weight:${isToday?'800':'400'};
+            background:${isToday?'var(--navy)':'transparent'};
+            color:${isToday?'#fff':!inYear||!inMonth?'var(--gray-light)':isWeekend?'var(--navy-light)':'var(--text)'}">${inYear?dayNum:''}</div>
+        </div>`;
       }).join('');
 
-      html+=`<div class="cal-week-row${isToday?' cal-today-row':''}" style="display:grid;grid-template-columns:48px 1fr 1fr 1fr 1fr 1fr 1fr 1fr;align-items:center;gap:0;border-radius:8px;margin-bottom:2px;background:${isToday?'rgba(3,43,67,.04)':sprintBg&&sp?sprintBg:'transparent'};${isToday?'box-shadow:inset 0 0 0 1.5px var(--navy);':''}padding:2px 0">
-        <div style="padding:2px 6px">
+      calHTML+=`<div style="display:grid;grid-template-columns:46px repeat(7,1fr);align-items:center;border-radius:7px;margin-bottom:2px;background:${rowBg};${isCurrentWeek?'box-shadow:inset 0 0 0 1.5px var(--navy-mid);':''}padding:1px 0">
+        <div style="padding:2px 4px;overflow:hidden">
           ${sp
-            ?`<div style="font-size:10px;font-weight:800;color:${sprintColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42px" title="${esc(sp.name)}">${sp.name.replace(/[^0-9]/g,'')&&'S'+sp.name.replace(/[^0-9]/g,'')}</div>`
-            :`<div style="font-size:9px;color:var(--gray-mid);font-style:italic">${w.week}</div>`
+            ?`<span style="font-size:10px;font-weight:800;color:${sprintColor};white-space:nowrap;display:block;overflow:hidden;text-overflow:ellipsis" title="${esc(sp.name)}">${spLabel}</span>`
+            :`<span style="font-size:9px;color:var(--gray-light)">${w.week}</span>`
           }
         </div>
         ${dayCells}
       </div>`;
     });
 
-    html+=`</div></div>`;
+    calHTML+=`</div></div>`;
   });
 
-  html+=`</div>`;
+  calHTML+=`</div>`;
 
-  // ── Leyenda de sprints lateral ───────────────────────────────────────────
-  const allSprintsSorted=Object.values(sprints)
-    .filter(s=>s.start)
-    .sort((a,b)=>a.start.localeCompare(b.start));
+  // ── Panel lateral ────────────────────────────────────────────────────
+  const allSprints=Object.values(sprints).filter(s=>s.start).sort((a,b)=>a.start.localeCompare(b.start));
 
-  const legItems=allSprintsSorted.map(sp=>{
+  const legItems=allSprints.map(sp=>{
     const isAct=activeSprint&&sp.id===activeSprint.id;
     const isCl=sp.closed===true;
     const color=isAct?'var(--orange)':isCl?'var(--green)':'var(--navy-light)';
     const badge=isAct?'Activo':isCl?'Cerrado':'Planeado';
-    const {week:ws}=sp.start?getISOWeek(new Date(sp.start+'T00:00:00')):{};
-    const {week:we}=sp.end?getISOWeek(new Date(sp.end+'T00:00:00')):{};
-    const weekRange=ws&&we?(ws===we?`S${ws}`:`S${ws}–S${we}`):'';
+    const {week:ws}=sp.start?isoWeekOfStr(sp.start):{};
+    const {week:we}=sp.end?isoWeekOfStr(sp.end):{};
+    const weekRange=ws&&we?(ws===we?`Sem. ${ws}`:`Sem. ${ws}–${we}`):'';
     return`<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:${isAct?'rgba(251,133,0,.06)':isCl?'rgba(0,184,148,.05)':'rgba(10,110,160,.04)'};margin-bottom:6px;border:1px solid ${isAct?'rgba(251,133,0,.2)':isCl?'rgba(0,184,148,.15)':'rgba(10,110,160,.1)'}">
       <div style="width:4px;height:36px;background:${color};border-radius:2px;flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:700;color:var(--navy)">${esc(sp.name)}</div>
-        <div style="font-size:10px;color:var(--gray);margin-top:1px">${sp.start?fmtShort(new Date(sp.start+'T00:00:00')):'?'} → ${sp.end?fmtShort(new Date(sp.end+'T00:00:00')):'?'}</div>
+        <div style="font-size:10px;color:var(--gray);margin-top:1px">${fmtShortIso(sp.start)} → ${sp.end?fmtShortIso(sp.end):'?'}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-size:10px;font-weight:700;color:${color}">${weekRange}</div>
@@ -1300,27 +1337,31 @@ function renderCalendar(){
     </div>`;
   }).join('');
 
-  const fullHTML=`<div style="display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:start">
-    <div>${html}</div>
-    <div style="position:sticky;top:72px">
+  const fullHTML=`<div style="display:grid;grid-template-columns:1fr 240px;gap:16px;align-items:start">
+    <div>${calHTML}</div>
+    <div style="position:sticky;top:72px;display:flex;flex-direction:column;gap:12px">
       <div class="dash-card">
         <div style="font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Sprints asignados</div>
-        ${legItems||'<div style="font-size:12px;color:var(--gray)">Sin sprints creados</div>'}
+        ${legItems||'<div style="font-size:12px;color:var(--gray);font-style:italic">Sin sprints creados</div>'}
       </div>
-      <div class="dash-card" style="margin-top:12px">
+      <div class="dash-card">
         <div style="font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Leyenda</div>
         <div style="display:flex;flex-direction:column;gap:6px">
-          <div style="display:flex;align-items:center;gap:8px"><div style="width:14px;height:14px;border-radius:50%;background:var(--navy);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Hoy</span></div>
-          <div style="display:flex;align-items:center;gap:8px"><div style="width:14px;height:6px;border-radius:3px;background:rgba(251,133,0,.25);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sprint activo</span></div>
-          <div style="display:flex;align-items:center;gap:8px"><div style="width:14px;height:6px;border-radius:3px;background:rgba(0,184,148,.18);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sprint cerrado</span></div>
-          <div style="display:flex;align-items:center;gap:8px"><div style="width:14px;height:6px;border-radius:3px;background:rgba(10,110,160,.15);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sprint planeado</span></div>
-          <div style="display:flex;align-items:center;gap:8px"><div style="width:14px;height:6px;border-radius:3px;background:var(--gray-light);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sin sprint</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:18px;border-radius:50%;background:var(--navy);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Hoy</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:7px;border-radius:3px;background:rgba(251,133,0,.25);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sprint activo</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:7px;border-radius:3px;background:rgba(0,184,148,.2);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sprint cerrado</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:7px;border-radius:3px;background:rgba(10,110,160,.15);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sprint planeado</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:7px;border-radius:3px;background:var(--gray-light);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sin sprint</span></div>
         </div>
       </div>
     </div>
   </div>`;
 
   container.innerHTML=fullHTML;
+
+  // Scroll a semana actual
+  const todayRow=container.querySelector('.cal-today-row');
+  // No auto-scroll al renderizar, solo desde botón Hoy
 }
 function refresh(){renderDash();renderBoard();renderDailyPage();renderOkrPage();renderSprintLog();}
 
