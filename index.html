@@ -825,8 +825,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
       <div class="config-section">
         <div class="config-section-title">👤 Responsables del equipo</div>
         <div class="config-list" id="cfg-assignee-list"></div>
-        <div class="config-add-row">
-          <input class="form-input" id="cfg-assignee-input" placeholder="Nombre completo..." maxlength="60">
+        <div class="config-add-row" style="flex-wrap:wrap;gap:6px">
+          <input class="form-input" id="cfg-assignee-input" placeholder="Nombre completo..." maxlength="60" style="flex:2;min-width:140px">
+          <input class="form-input" id="cfg-position-input" placeholder="Puesto (ej: Coord. Costos)" maxlength="50" style="flex:1;min-width:120px">
           <button class="btn-save" id="cfg-assignee-add">＋ Agregar</button>
         </div>
       </div>
@@ -867,7 +868,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="form-group full"><label class="form-label">Descripcion</label><textarea class="form-textarea" id="f-desc" placeholder="Detalles, contexto, criterios de aceptacion..."></textarea></div>
         <div class="form-group"><label class="form-label">Estado</label><select class="form-select" id="f-status"><option value="backlog">Backlog</option><option value="todo">Por hacer</option><option value="progress">En progreso</option><option value="review">En revision</option><option value="done">Completado</option></select></div>
         <div class="form-group"><label class="form-label">Prioridad</label><select class="form-select" id="f-priority"><option value="Media">Media</option><option value="Alta">Alta</option><option value="Baja">Baja</option></select></div>
-        <div class="form-group"><label class="form-label">Responsable</label><select class="form-select" id="f-assignee"><option value="">— Sin asignar —</option></select></div>
+        <div class="form-group"><label class="form-label">Responsable</label><select class="form-select" id="f-assignee" onchange="injectPositionPrefix(this.value)"><option value="">— Sin asignar —</option></select></div>
         <div class="form-group"><label class="form-label">👁 Revisor</label><select class="form-select" id="f-reviewer"><option value="">— Sin revisor —</option></select></div>
         <div class="form-group"><label class="form-label">Fecha limite</label><input class="form-input" id="f-due" type="date"></div>
         <div class="form-group full"><label class="form-label" style="margin-bottom:4px">👥 Colaboradores <span style="font-size:9px;font-weight:500;color:var(--gray)">(apoyan en la tarea — el responsable principal sigue siendo el dueño del cumplimiento)</span></label><div id="f-collaborators-wrap" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;padding:6px 8px;border:1px solid var(--gray-light);border-radius:8px;background:#fff;cursor:text" onclick="document.getElementById('f-collab-input').focus()"><span id="f-collab-tags" style="display:contents"></span><input id="f-collab-input" placeholder="Escribe o selecciona…" style="border:none;outline:none;font-size:12px;min-width:120px;flex:1;padding:0;background:transparent" list="f-collab-datalist" autocomplete="off" onkeydown="collabInputKey(event)" oninput="collabInputFilter(this.value)"><datalist id="f-collab-datalist"></datalist></div></div>
@@ -1001,7 +1002,7 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
+let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[],positions:{}}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
 
 // ── AUTH ──
 function doLogin(){
@@ -1025,7 +1026,7 @@ async function initFB(){
     db=firebase.database();
     badge('ok','Conectado');
     db.ref('tasks').on('value',s=>{tasks=s.val()||{};rebuildFilters();refresh();badge('ok','Sync');});
-    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[],areas:d.areas||[]};rebuildConfigSelects();});
+    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[],areas:d.areas||[],positions:d.positions||{}};rebuildConfigSelects();});
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();renderSprintModal();refresh();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();badge('ok','Sync');});
     db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();badge('ok','Sync');});
     db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();renderDashDaily();badge('ok','Sync');});
@@ -1099,7 +1100,16 @@ function rebuildConfigSelects(){
 function renderConfigLists(){
   const al=document.getElementById('cfg-assignee-list');
   if(al){al.innerHTML=config.assignees.length
-    ?config.assignees.map((n,i)=>`<div class="config-item"><span class="config-item-text">${esc(n)}</span><button class="config-item-del" onclick="delAssignee(${i})">✕</button></div>`).join('')
+    ?config.assignees.map((n,i)=>{
+      const pos=config.positions[n]||'';
+      return `<div class="config-item">
+        <span class="config-item-text">${esc(n)}${pos?` <span style="font-size:10px;font-weight:600;color:var(--gray);background:var(--gray-light);padding:1px 6px;border-radius:10px;margin-left:4px">${esc(pos)}</span>`:''}</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <button class="config-item-del" style="background:rgba(91,155,213,.12);color:var(--navy-mid);font-size:10px;padding:2px 7px" onclick="editAssigneePosition('${esc(n)}')">✏</button>
+          <button class="config-item-del" onclick="delAssignee(${i})">✕</button>
+        </div>
+      </div>`;
+    }).join('')
     :'<div class="config-empty">Sin responsables definidos aún</div>';}
   const tl=document.getElementById('cfg-tag-list');
   if(tl){tl.innerHTML=config.tags.length
@@ -1749,7 +1759,20 @@ document.getElementById('save-task').onclick=saveTask;
 document.getElementById('btn-delete-task').onclick=deleteTask;
 document.getElementById('modal-form').onclick=e=>{if(e.target===e.currentTarget)closeModal('modal-form');};
 
-function openNewTask(){
+function injectPositionPrefix(assignee){
+  if(editId)return; // En edición no tocar el título existente
+  const titleEl=document.getElementById('f-title');
+  if(!titleEl)return;
+  const pos=config.positions[assignee]||'';
+  const PREFIX_RE=/^[^·\n]+·\s*/; // Detecta cualquier prefijo "PUESTO · "
+  let cur=titleEl.value;
+  cur=cur.replace(PREFIX_RE,''); // Quitar prefijo anterior si existía
+  titleEl.value=pos?`${pos} · ${cur}`:cur;
+  titleEl.focus();
+  // Mover cursor al final
+  const len=titleEl.value.length;titleEl.setSelectionRange(len,len);
+}
+
   editId=null;
   document.getElementById('modal-form-title').textContent='Nueva tarea';
   document.getElementById('f-title').value='';
@@ -3093,6 +3116,7 @@ document.getElementById('cfg-close').onclick=()=>closeModal('modal-config');
 document.getElementById('modal-config').onclick=e=>{if(e.target===e.currentTarget)closeModal('modal-config');};
 document.getElementById('cfg-assignee-add').onclick=addAssignee;
 document.getElementById('cfg-assignee-input').onkeydown=e=>{if(e.key==='Enter')addAssignee();};
+document.getElementById('cfg-position-input').onkeydown=e=>{if(e.key==='Enter')addAssignee();};
 document.getElementById('cfg-tag-add').onclick=addTag;
 document.getElementById('cfg-tag-input').onkeydown=e=>{if(e.key==='Enter')addTag();};
 document.getElementById('cfg-area-add').onclick=addArea;
@@ -3100,14 +3124,33 @@ document.getElementById('cfg-area-input').onkeydown=e=>{if(e.key==='Enter')addAr
 
 async function addAssignee(){
   const inp=document.getElementById('cfg-assignee-input');
+  const pinp=document.getElementById('cfg-position-input');
   const v=inp.value.trim();if(!v)return;
   if(config.assignees.includes(v)){inp.select();return;}
+  const pos=pinp.value.trim();
   await fbSet('config/assignees',[...config.assignees,v].sort());
-  inp.value='';inp.focus();
+  if(pos){
+    const newPositions={...config.positions,[v]:pos};
+    await fbSet('config/positions',newPositions);
+  }
+  inp.value='';pinp.value='';inp.focus();
 }
 async function delAssignee(i){
   if(!confirm('¿Eliminar este responsable?'))return;
+  const name=config.assignees[i];
   await fbSet('config/assignees',config.assignees.filter((_,idx)=>idx!==i));
+  if(name&&config.positions[name]){
+    const newPos={...config.positions};delete newPos[name];
+    await fbSet('config/positions',Object.keys(newPos).length?newPos:null);
+  }
+}
+async function editAssigneePosition(name){
+  const cur=config.positions[name]||'';
+  const np=prompt(`Puesto de ${name}:`,cur);
+  if(np===null)return;
+  const newPos={...config.positions,[name]:np.trim()};
+  if(!np.trim())delete newPos[name];
+  await fbSet('config/positions',Object.keys(newPos).length?newPos:null);
 }
 async function addTag(){
   const inp=document.getElementById('cfg-tag-input');
