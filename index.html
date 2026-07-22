@@ -212,6 +212,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 .card-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:var(--gray-pale);color:var(--navy-light);border:1px solid var(--gray-light);}
 .card-assignee{font-size:10px;color:var(--gray);display:flex;align-items:center;gap:3px;}
 .avatar{width:18px;height:18px;border-radius:50%;background:var(--navy-mid);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.role-sep{color:var(--gray-mid);font-weight:700;margin:0 1px;flex-shrink:0;}
+.title-role{font-weight:800;color:var(--navy-light);letter-spacing:.3px;}
+.title-sep{color:var(--gray-mid);font-weight:700;margin:0 4px;}
+.role-chip{display:inline-flex;align-items:center;font-size:9px;font-weight:800;letter-spacing:.4px;color:var(--navy-light);background:rgba(10,110,160,.1);border-radius:4px;padding:1px 4px;white-space:nowrap;flex-shrink:0;text-transform:uppercase;}
+.role-chip-lg{font-size:10px;padding:2px 6px;}
 .card-due{font-size:10px;color:var(--gray);display:flex;align-items:center;gap:3px;margin-left:auto;}
 .overdue{color:var(--red)!important;font-weight:600;}
 .soon{color:var(--orange)!important;font-weight:600;}
@@ -363,11 +368,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 .s-review{background:rgba(108,92,231,.12);color:var(--col-review);}
 .s-done{background:rgba(0,184,148,.12);color:var(--col-done);}
 @media(max-width:780px){
-  .list-row{grid-template-columns:14px 1fr 28px 90px;}
-  .list-tag,.list-assignee,.list-due{display:none;}
+  /* Se conserva avatar + sigla del puesto; solo se oculta el nombre largo */
+  .list-row{grid-template-columns:14px 1fr 22px 28px 90px;}
+  .list-tag,.list-due{display:none;}
+  .list-assignee{gap:0;justify-content:center;}
+  .list-assignee-name{display:none;}
 }
 @media(max-width:480px){
-  .list-row{grid-template-columns:14px 1fr 90px;}
+  .list-row{grid-template-columns:14px 1fr 22px 90px;}
   .list-cmts{display:none;}
 }
 
@@ -826,11 +834,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
     <div class="modal-body">
       <div class="config-section">
         <div class="config-section-title">👤 Responsables del equipo</div>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;line-height:1.5">La <b>sigla del puesto</b> se calcula sola a partir del puesto (ej. "Jefatura de Planeación y Control" → <b>JPC</b>) y aparece junto al nombre en tareas, listas y dailies. Para editar a alguien ya registrado, usa ✎ o vuelve a escribir su nombre exacto.</div>
         <div class="config-list" id="cfg-assignee-list"></div>
-        <div class="config-add-row">
-          <input class="form-input" id="cfg-assignee-input" placeholder="Nombre completo..." maxlength="60">
-          <button class="btn-save" id="cfg-assignee-add">＋ Agregar</button>
+        <div class="config-add-row" style="flex-wrap:wrap;gap:6px">
+          <input class="form-input" id="cfg-assignee-input" placeholder="Nombre completo..." maxlength="60" list="cfg-assignee-datalist" autocomplete="off" style="flex:1 1 100%">
+          <datalist id="cfg-assignee-datalist"></datalist>
+          <input class="form-input" id="cfg-role-input" placeholder="Puesto / posición (ej. Jefatura de Costos y Contratos)" maxlength="70" style="flex:1 1 60%">
+          <input class="form-input" id="cfg-abbr-input" placeholder="Sigla" maxlength="6" style="flex:0 0 74px;text-transform:uppercase">
+          <button class="btn-save" id="cfg-assignee-add" style="flex:0 0 auto">＋ Guardar</button>
         </div>
+        <div id="cfg-assignee-hint" style="font-size:10px;color:var(--gray);margin-top:5px"></div>
       </div>
       <div class="config-section">
         <div class="config-section-title">🏷 Etiquetas de proyecto</div>
@@ -1066,7 +1079,7 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
+let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[],roles:{}}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
 // Ausencias (vacaciones/permisos/incapacidades/comisiones) y cumpleaños
 let vacations={}, birthdays={}, trips={}, calPerson='';
 
@@ -1092,7 +1105,7 @@ async function initFB(){
     db=firebase.database();
     badge('ok','Conectado');
     db.ref('tasks').on('value',s=>{tasks=s.val()||{};rebuildFilters();refresh();badge('ok','Sync');});
-    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[],areas:d.areas||[]};rebuildConfigSelects();});
+    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[],areas:d.areas||[],roles:d.roles||{}};rebuildConfigSelects();refresh();});
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();renderSprintModal();refresh();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();badge('ok','Sync');});
     db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();badge('ok','Sync');});
     db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();renderDashDaily();badge('ok','Sync');});
@@ -1118,6 +1131,42 @@ function fmtD(iso){if(!iso)return '';const d=new Date(iso+'T00:00:00');return d.
 function dueCls(iso){if(!iso)return '';const t=new Date();t.setHours(0,0,0,0);const diff=(new Date(iso+'T00:00:00')-t)/86400000;return diff<0?'overdue':diff<=3?'soon':'';}
 function priCls(p){return p==='Alta'?'pri-Alta':p==='Baja'?'pri-Baja':'pri-Media';}
 function av(n){if(!n)return '?';return n.trim().split(/\s+/).map(w=>w[0].toUpperCase()).slice(0,2).join('');}
+// ── PUESTOS / POSICIONES ───────────────────────────────────────────────
+// Se guardan aparte de config.assignees (que sigue siendo un array de nombres)
+// para no romper el modelo: las tareas siguen referenciando por nombre.
+const ROLE_STOP=new Set(['de','del','la','las','los','el','y','e','en','para','por','a','al','con','sobre','the','of','and']);
+// Deriva la sigla de un puesto: "Jefatura de Planeación y Control" → "JPC"
+function roleAbbr(role){
+  const raw=String(role||'').trim();
+  if(!raw)return '';
+  // Si ya viene escrito como sigla, se respeta tal cual
+  if(/^[A-ZÁÉÍÓÚÑ0-9.\-]{2,6}$/.test(raw))return raw.replace(/\./g,'');
+  const words=raw.split(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+/).filter(Boolean).filter(w=>!ROLE_STOP.has(w.toLowerCase()));
+  if(!words.length)return raw.slice(0,3).toUpperCase();
+  if(words.length===1)return words[0].slice(0,3).toUpperCase();
+  return words.map(w=>w[0].toUpperCase()).slice(0,4).join('');
+}
+function roleOf(name){if(!name)return null;return(config.roles&&config.roles[slugKey(name)])||null;}
+function roleTxt(name){const r=roleOf(name);return r&&r.role?r.role:'';}
+function roleSig(name){const r=roleOf(name);if(!r||!r.role)return '';return r.abbr||roleAbbr(r.role);}
+// Prefijo de título: "SPPC · Presupuesto ADP"
+function titlePfx(name){
+  const sig=roleSig(name);if(!sig)return '';
+  return`<span class="title-role" title="${esc(roleTxt(name))}">${esc(sig)}</span><span class="title-sep">·</span>`;
+}
+// Versión en texto plano (para el detalle, que usa textContent)
+function titleTxt(name,title){
+  const sig=roleSig(name);
+  return(sig?sig+' · ':'')+(title||'--');
+}
+// Chip con la sigla del puesto, precedido del separador "·"
+function roleChip(name,opts){
+  const sig=roleSig(name);if(!sig)return '';
+  const o=opts||{};
+  return`<span class="role-sep">·</span><span class="role-chip"${o.noTitle?'':` title="${esc(roleTxt(name))}"`}>${esc(sig)}</span>`;
+}
+// Etiqueta "Nombre — SIGLA" para los <option> de los selects
+function nameOpt(n){const s=roleSig(n);return esc(n)+(s?' — '+esc(s):'');}
 function tsL(ts){if(!ts)return '';const d=new Date(ts);return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});}
 // Sprint activo: primero el marcado active===true en Firebase,
 // luego fallback por fecha si ninguno tiene el flag
@@ -1147,13 +1196,13 @@ function rebuildFilters(){
     ...Object.values(tasks).map(t=>t.assignee).filter(Boolean),
     ...Object.values(tasks).flatMap(t=>t.collaborators||[]).filter(Boolean)
   ])].sort();
-  fA.innerHTML='<option value="">Todos los responsables</option>'+names.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('');
+  fA.innerHTML='<option value="">Todos los responsables</option>'+names.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${nameOpt(n)}</option>`).join('');
 }
 function rebuildConfigSelects(){
   const fA=document.getElementById('f-assignee');
-  if(fA){const cv=fA.value;fA.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${esc(n)}</option>`).join('');}
+  if(fA){const cv=fA.value;fA.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${nameOpt(n)}</option>`).join('');}
   const fR=document.getElementById('f-reviewer');
-  if(fR){const cv=fR.value;fR.innerHTML='<option value="">— Sin revisor —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${esc(n)}</option>`).join('');}
+  if(fR){const cv=fR.value;fR.innerHTML='<option value="">— Sin revisor —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${nameOpt(n)}</option>`).join('');}
   const dl=document.getElementById('f-collab-datalist');
   if(dl)dl.innerHTML=config.assignees.map(n=>`<option value="${esc(n)}">`).join('');
   const fT=document.getElementById('f-tag');
@@ -1169,8 +1218,20 @@ function rebuildConfigSelects(){
 function renderConfigLists(){
   const al=document.getElementById('cfg-assignee-list');
   if(al){al.innerHTML=config.assignees.length
-    ?config.assignees.map((n,i)=>`<div class="config-item"><span class="config-item-text">${esc(n)}</span><button class="config-item-del" onclick="delAssignee(${i})">✕</button></div>`).join('')
+    ?config.assignees.map((n,i)=>{
+      const sig=roleSig(n),txt=roleTxt(n);
+      return`<div class="config-item">
+        <span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(n))}</span>
+        <span class="config-item-text">
+          <span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">${esc(n)}${sig?`<span class="role-chip">${esc(sig)}</span>`:'<span style="font-size:9px;color:var(--orange);font-weight:700">sin puesto</span>'}</span>
+          ${txt?`<div style="font-size:10px;color:var(--gray);margin-top:1px">${esc(txt)}</div>`:''}
+        </span>
+        <button class="config-item-del" style="color:var(--navy-light)" title="Editar puesto" onclick="editAssignee(${i})">✎</button>
+        <button class="config-item-del" onclick="delAssignee(${i})">✕</button>
+      </div>`;}).join('')
     :'<div class="config-empty">Sin responsables definidos aún</div>';}
+  const dlN=document.getElementById('cfg-assignee-datalist');
+  if(dlN)dlN.innerHTML=config.assignees.map(n=>`<option value="${esc(n)}">`).join('');
   const tl=document.getElementById('cfg-tag-list');
   if(tl){tl.innerHTML=config.tags.length
     ?config.tags.map((t,i)=>`<div class="config-item"><span class="config-item-text">${esc(t)}</span><button class="config-item-del" onclick="delTag(${i})">✕</button></div>`).join('')
@@ -2071,7 +2132,7 @@ function cardHTML(t){
   const collabs=(t.collaborators||[]).slice(0,3).map(c=>`<span class="avatar" style="width:18px;height:18px;font-size:8px;margin-left:-5px;border:1.5px solid #fff" title="${esc(c)}">${esc(av(c))}</span>`).join('');
   const collabMore=(t.collaborators||[]).length>3?`<span style="font-size:9px;color:var(--gray);margin-left:2px">+${t.collaborators.length-3}</span>`:'';
   const collabRow=(t.collaborators&&t.collaborators.length)?`<span style="display:flex;align-items:center;margin-left:2px">${collabs}${collabMore}</span>`:'';
-  return`<div class="task-card" onclick="openDetail('${t.id}')" ${t.blocked?'style="border-left:3px solid var(--red)"':''}><div class="card-top"><span class="card-title">${esc(t.title)}</span><span class="card-pri ${priCls(t.priority)}"></span></div>${t.desc?`<div class="card-desc">${esc(t.desc)}</div>`:''}<div class="card-meta">${t.blocked?`<span style="font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:rgba(231,76,60,.12);color:var(--red)">🚫</span>`:''}${t.tag?`<span class="card-tag">${esc(t.tag)}</span>`:''}${spn}${t.assignee?`<span class="card-assignee"><span class="avatar">${esc(av(t.assignee))}</span>${esc(t.assignee)}</span>`:''}${collabRow}${cmts?`<span class="card-cmts" style="margin-left:auto">💬 ${cmts}</span>`:''}${t.due?`<span class="card-due ${dc}" ${cmts?'':'style="margin-left:auto"'}>📅 ${fmtD(t.due)}</span>`:''}</div></div>`;
+  return`<div class="task-card" onclick="openDetail('${t.id}')" ${t.blocked?'style="border-left:3px solid var(--red)"':''}><div class="card-top"><span class="card-title">${titlePfx(t.assignee)}${esc(t.title)}</span><span class="card-pri ${priCls(t.priority)}"></span></div>${t.desc?`<div class="card-desc">${esc(t.desc)}</div>`:''}<div class="card-meta">${t.blocked?`<span style="font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:rgba(231,76,60,.12);color:var(--red)">🚫</span>`:''}${t.tag?`<span class="card-tag">${esc(t.tag)}</span>`:''}${spn}${t.assignee?`<span class="card-assignee" title="${esc(t.assignee)}${roleTxt(t.assignee)?' — '+esc(roleTxt(t.assignee)):''}"><span class="avatar">${esc(av(t.assignee))}</span>${esc(t.assignee)}</span>`:''}${collabRow}${cmts?`<span class="card-cmts" style="margin-left:auto">💬 ${cmts}</span>`:''}${t.due?`<span class="card-due ${dc}" ${cmts?'':'style="margin-left:auto"'}>📅 ${fmtD(t.due)}</span>`:''}</div></div>`;
 }
 function renderList(filtered){
   const c=document.getElementById('view-list');
@@ -2091,9 +2152,9 @@ function lRowHTML(t){
   // Siempre emite las 7 celdas del grid para mantener alineación de columnas
   return`<div class="list-row" onclick="openDetail('${t.id}')">` +
     `<span class="list-pri ${priCls(t.priority)}"></span>` +
-    `<div class="list-title">${esc(t.title)}${t.desc?`<small>${esc(t.desc)}</small>`:''}</div>` +
+    `<div class="list-title">${titlePfx(t.assignee)}${esc(t.title)}${t.desc?`<small>${esc(t.desc)}</small>`:''}</div>` +
     `<span class="list-tag">${t.tag?esc(t.tag):''}</span>` +
-    `<span class="list-assignee">${t.assignee?`<span class="avatar">${esc(av(t.assignee))}</span><span class="list-assignee-name">${esc(t.assignee)}</span>`:''}</span>` +
+    `<span class="list-assignee"${t.assignee?` title="${esc(t.assignee)}${roleTxt(t.assignee)?' — '+esc(roleTxt(t.assignee)):''}"`:''}>${t.assignee?`<span class="avatar">${esc(av(t.assignee))}</span><span class="list-assignee-name">${esc(t.assignee)}</span>`:''}</span>` +
     `<span class="list-due ${t.due?dc:''}">${t.due?`📅 ${fmtD(t.due)}`:''}</span>` +
     `<span class="list-cmts">${cmts?`💬 ${cmts}`:''}</span>` +
     `<span class="status-badge ${col?.sc||''}">${col?.lb||t.status}</span>` +
@@ -2210,18 +2271,18 @@ document.getElementById('d-cmt-input').onkeydown=e=>{if(e.key==='Enter'&&!e.shif
 
 function openDetail(id){
   const t=tasks[id];if(!t)return;detailId=id;
-  document.getElementById('d-title').textContent=t.title||'--';
+  document.getElementById('d-title').textContent=titleTxt(t.assignee,t.title);
   const col=CMAP[t.status]||COLS[0];
   const blockedBadge=t.blocked?`<span class="status-badge" style="background:rgba(231,76,60,.12);color:var(--red)">🚫 Bloqueada</span>`:'';
   document.getElementById('d-badges').innerHTML=`<span class="status-badge ${col.sc}">${col.lb}</span> <span class="status-badge" style="background:rgba(231,76,60,.1);color:var(--red)">${t.priority||'--'}</span>${t.sprint&&sprints[t.sprint]?` <span class="status-badge" style="background:rgba(3,43,67,.08);color:var(--navy-mid)">${esc(sprints[t.sprint].name)}</span>`:''}${blockedBadge}`;
   document.getElementById('d-status-actions').innerHTML=COLS.map(c=>`<button class="btn-status ${c.id===t.status?'active':''}" style="background:${c.id===t.status?`color-mix(in srgb,${c.dot} 15%,white)`:'var(--gray-pale)'};color:${c.dot}" onclick="chgStatus('${id}','${c.id}')">${c.lb}</button>`).join('');
   const reviewerCell=t.reviewer
-    ?`<div><div class="detail-label">👁 Revisor</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(t.reviewer))}</span>${esc(t.reviewer)}</div></div>`
+    ?`<div><div class="detail-label">👁 Revisor</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap"><span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(t.reviewer))}</span>${esc(t.reviewer)}${roleSig(t.reviewer)?`<span class="role-chip role-chip-lg">${esc(roleSig(t.reviewer))}</span>`:''}</div></div>`
     :'';
   const collabCell=(t.collaborators&&t.collaborators.length)
     ?`<div style="grid-column:1/-1"><div class="detail-label">👥 Colaboradores</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">${t.collaborators.map(c=>`<span style="display:flex;align-items:center;gap:5px;padding:3px 8px;background:var(--gray-pale);border-radius:20px;font-size:11px;font-weight:600"><span class="avatar" style="width:18px;height:18px;font-size:8px">${esc(av(c))}</span>${esc(c)}</span>`).join('')}</div></div>`
     :'';
-  document.getElementById('d-meta').innerHTML=`<div><div class="detail-label">Responsable</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;margin-top:2px"><span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(t.assignee))}</span>${esc(t.assignee||'Sin asignar')}</div></div>${reviewerCell}<div><div class="detail-label">Fecha limite</div><div class="detail-value ${dueCls(t.due)}" style="margin-top:2px">${t.due?fmtD(t.due):'--'}</div></div>${t.tag?`<div><div class="detail-label">Etiqueta</div><div style="margin-top:2px"><span class="list-tag">${esc(t.tag)}</span></div></div>`:''}<div><div class="detail-label">Creado</div><div class="detail-value" style="margin-top:2px">${tsL(t.createdAt)}</div></div>${collabCell}`;
+  document.getElementById('d-meta').innerHTML=`<div><div class="detail-label">Responsable</div><div class="detail-value" style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap"><span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(t.assignee))}</span>${esc(t.assignee||'Sin asignar')}${roleSig(t.assignee)?`<span class="role-chip role-chip-lg">${esc(roleSig(t.assignee))}</span>`:''}</div>${roleTxt(t.assignee)?`<div style="font-size:10px;color:var(--gray);margin-top:2px">${esc(roleTxt(t.assignee))}</div>`:''}</div>${reviewerCell}<div><div class="detail-label">Fecha limite</div><div class="detail-value ${dueCls(t.due)}" style="margin-top:2px">${t.due?fmtD(t.due):'--'}</div></div>${t.tag?`<div><div class="detail-label">Etiqueta</div><div style="margin-top:2px"><span class="list-tag">${esc(t.tag)}</span></div></div>`:''}<div><div class="detail-label">Creado</div><div class="detail-value" style="margin-top:2px">${tsL(t.createdAt)}</div></div>${collabCell}`;
   // Banner de impedimento
   let blkWrap=document.getElementById('d-blocked-banner');
   if(!blkWrap){blkWrap=document.createElement('div');blkWrap.id='d-blocked-banner';const ds=document.getElementById('d-desc-section');ds.parentNode.insertBefore(blkWrap,ds);}
@@ -2339,7 +2400,7 @@ function renderDailyPage(){
     html+=`<div class="daily-section">
       <div class="daily-section-header" onclick="tgrpDaily('${secId}')">
         <div class="daily-section-avatar">${esc(av(name))}</div>
-        <div class="daily-section-name">${esc(name)}</div>
+        <div class="daily-section-name">${esc(name)}${roleChip(name)}</div>
         <div class="daily-section-counts">
           <span style="color:var(--green);font-weight:700">${doneC} ✓</span>
           <span>/ ${items.length}</span>
@@ -3467,6 +3528,21 @@ document.getElementById('cal-filter-person').onchange=e=>{calPerson=e.target.val
 
 document.getElementById('cfg-assignee-add').onclick=addAssignee;
 document.getElementById('cfg-assignee-input').onkeydown=e=>{if(e.key==='Enter')addAssignee();};
+document.getElementById('cfg-role-input').onkeydown=e=>{if(e.key==='Enter')addAssignee();};
+document.getElementById('cfg-abbr-input').onkeydown=e=>{if(e.key==='Enter')addAssignee();};
+// Al escribir un nombre ya registrado, precarga su puesto actual
+document.getElementById('cfg-assignee-input').oninput=e=>{
+  const n=e.target.value.trim();const r=roleOf(n);
+  if(r&&config.assignees.includes(n)){
+    document.getElementById('cfg-role-input').value=r.role||'';
+    document.getElementById('cfg-abbr-input').value=r.abbr||'';
+  }
+};
+// Vista previa de la sigla derivada mientras se escribe el puesto
+document.getElementById('cfg-role-input').oninput=e=>{
+  const ain=document.getElementById('cfg-abbr-input');
+  ain.placeholder=roleAbbr(e.target.value)||'Sigla';
+};
 document.getElementById('cfg-tag-add').onclick=addTag;
 document.getElementById('cfg-tag-input').onkeydown=e=>{if(e.key==='Enter')addTag();};
 document.getElementById('cfg-area-add').onclick=addArea;
@@ -3474,14 +3550,37 @@ document.getElementById('cfg-area-input').onkeydown=e=>{if(e.key==='Enter')addAr
 
 async function addAssignee(){
   const inp=document.getElementById('cfg-assignee-input');
-  const v=inp.value.trim();if(!v)return;
-  if(config.assignees.includes(v)){inp.select();return;}
-  await fbSet('config/assignees',[...config.assignees,v].sort());
-  inp.value='';inp.focus();
+  const rin=document.getElementById('cfg-role-input');
+  const ain=document.getElementById('cfg-abbr-input');
+  const hint=document.getElementById('cfg-assignee-hint');
+  const v=inp.value.trim();
+  if(!v){hint.textContent='Falta el nombre.';inp.focus();return;}
+  const role=rin.value.trim();
+  const abbr=ain.value.trim().toUpperCase();
+  const existe=config.assignees.includes(v);
+  // Alta o actualización: si el nombre ya existe solo se actualiza el puesto
+  if(!existe)await fbSet('config/assignees',[...config.assignees,v].sort());
+  if(role)await fbSet('config/roles/'+slugKey(v),{name:v,role,abbr:abbr||roleAbbr(role)});
+  else if(roleOf(v))await fbDel('config/roles/'+slugKey(v));
+  hint.textContent=existe?`✓ Puesto actualizado para ${v}`:`✓ ${v} agregado`;
+  setTimeout(()=>{if(hint)hint.textContent='';},2600);
+  inp.value='';rin.value='';ain.value='';inp.focus();
+}
+// Carga una persona existente en el formulario para editar su puesto
+function editAssignee(i){
+  const n=config.assignees[i];if(n===undefined)return;
+  const r=roleOf(n);
+  document.getElementById('cfg-assignee-input').value=n;
+  document.getElementById('cfg-role-input').value=r&&r.role?r.role:'';
+  document.getElementById('cfg-abbr-input').value=r&&r.abbr?r.abbr:'';
+  document.getElementById('cfg-assignee-hint').textContent='Editando '+n+' — modifica el puesto y presiona Guardar.';
+  document.getElementById('cfg-role-input').focus();
 }
 async function delAssignee(i){
+  const n=config.assignees[i];
   if(!confirm('¿Eliminar este responsable?'))return;
   await fbSet('config/assignees',config.assignees.filter((_,idx)=>idx!==i));
+  if(n&&roleOf(n))await fbDel('config/roles/'+slugKey(n));
 }
 async function addTag(){
   const inp=document.getElementById('cfg-tag-input');
@@ -4056,7 +4155,7 @@ document.getElementById('okr-f-start').oninput=function(){this.dataset.userEdite
 
 function rebuildOkrOwnerSel(cur){
   const el=document.getElementById('okr-f-owner');if(!el)return;
-  el.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('');
+  el.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${nameOpt(n)}</option>`).join('');
 }
 function renderKrDraftList(){
   const el=document.getElementById('kr-form-list');if(!el)return;
