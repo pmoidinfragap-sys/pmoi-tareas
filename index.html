@@ -770,6 +770,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="toolbar" style="gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:0">
           <span style="font-size:13px;font-weight:700;color:var(--navy)">📅 Calendario 2026 — Semanas de sprint</span>
           <div style="flex:1"></div>
+          <select class="filter-select" id="cal-filter-person" style="font-size:11px"><option value="">Todo el equipo</option></select>
+          <button id="cal-people-btn" style="padding:5px 14px;background:#fff;color:var(--navy);border:1px solid var(--gray-mid);border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">🌴 Ausencias y 🎂 cumpleaños</button>
           <button id="cal-today-btn" style="padding:5px 14px;background:var(--orange);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">Hoy</button>
         </div>
         <div id="cal-content" style="padding:16px 0"></div>
@@ -825,9 +827,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
       <div class="config-section">
         <div class="config-section-title">👤 Responsables del equipo</div>
         <div class="config-list" id="cfg-assignee-list"></div>
-        <div class="config-add-row" style="flex-wrap:wrap;gap:6px">
-          <input class="form-input" id="cfg-assignee-input" placeholder="Nombre completo..." maxlength="60" style="flex:2;min-width:140px">
-          <input class="form-input" id="cfg-position-input" placeholder="Puesto (ej: Coord. Costos)" maxlength="50" style="flex:1;min-width:120px">
+        <div class="config-add-row">
+          <input class="form-input" id="cfg-assignee-input" placeholder="Nombre completo..." maxlength="60">
           <button class="btn-save" id="cfg-assignee-add">＋ Agregar</button>
         </div>
       </div>
@@ -855,6 +856,50 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
   </div>
 </div>
 
+<!-- MODAL AUSENCIAS Y CUMPLEAÑOS -->
+<div class="modal-overlay" id="modal-people">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <span class="modal-title">🌴 Ausencias y 🎂 cumpleaños</span>
+      <button class="modal-close" id="close-modal-people">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="config-section">
+        <div class="config-section-title">🌴 Registrar ausencia</div>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;line-height:1.5">Vacaciones, permisos, incapacidades o comisiones. Se pintan en el calendario y se descuentan de la capacidad visible del sprint.</div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Persona *</label><select class="form-select" id="aus-f-person"><option value="">— Seleccionar —</option></select></div>
+          <div class="form-group"><label class="form-label">Tipo</label><select class="form-select" id="aus-f-type"></select></div>
+          <div class="form-group"><label class="form-label">Inicio *</label><input class="form-input" type="date" id="aus-f-start"></div>
+          <div class="form-group"><label class="form-label">Fin *</label><input class="form-input" type="date" id="aus-f-end"></div>
+          <div class="form-group full"><label class="form-label">Nota</label><input class="form-input" id="aus-f-note" placeholder="Opcional: folio, cobertura, observaciones..." maxlength="90"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn-save" id="aus-add">＋ Agregar ausencia</button></div>
+        <div id="aus-error" style="font-size:11px;color:var(--red);font-weight:600;margin-top:6px"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px">
+          <div class="config-section-title" style="margin:0;flex:1">Registradas</div>
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray);cursor:pointer"><input type="checkbox" id="aus-show-past" style="accent-color:var(--navy)"> Ver pasadas</label>
+        </div>
+        <div class="config-list" id="aus-list"></div>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">🎂 Cumpleaños del equipo</div>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;line-height:1.5">Solo se guarda día y mes (se repite cada año). Un registro por persona: volver a guardar actualiza la fecha.</div>
+        <div class="config-add-row" style="gap:8px">
+          <select class="form-select" id="bd-f-person" style="flex:1"><option value="">— Seleccionar persona —</option></select>
+          <input class="form-input" type="date" id="bd-f-date" style="max-width:150px">
+          <button class="btn-save" id="bd-add">Guardar</button>
+        </div>
+        <div id="bd-error" style="font-size:11px;color:var(--red);font-weight:600;margin:6px 0"></div>
+        <div class="config-list" id="bd-list" style="margin-top:10px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="people-close">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL TAREA -->
 <div class="modal-overlay" id="modal-form">
   <div class="modal">
@@ -868,7 +913,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div class="form-group full"><label class="form-label">Descripcion</label><textarea class="form-textarea" id="f-desc" placeholder="Detalles, contexto, criterios de aceptacion..."></textarea></div>
         <div class="form-group"><label class="form-label">Estado</label><select class="form-select" id="f-status"><option value="backlog">Backlog</option><option value="todo">Por hacer</option><option value="progress">En progreso</option><option value="review">En revision</option><option value="done">Completado</option></select></div>
         <div class="form-group"><label class="form-label">Prioridad</label><select class="form-select" id="f-priority"><option value="Media">Media</option><option value="Alta">Alta</option><option value="Baja">Baja</option></select></div>
-        <div class="form-group"><label class="form-label">Responsable</label><select class="form-select" id="f-assignee" onchange="injectPositionPrefix(this.value)"><option value="">— Sin asignar —</option></select></div>
+        <div class="form-group"><label class="form-label">Responsable</label><select class="form-select" id="f-assignee"><option value="">— Sin asignar —</option></select></div>
         <div class="form-group"><label class="form-label">👁 Revisor</label><select class="form-select" id="f-reviewer"><option value="">— Sin revisor —</option></select></div>
         <div class="form-group"><label class="form-label">Fecha limite</label><input class="form-input" id="f-due" type="date"></div>
         <div class="form-group full"><label class="form-label" style="margin-bottom:4px">👥 Colaboradores <span style="font-size:9px;font-weight:500;color:var(--gray)">(apoyan en la tarea — el responsable principal sigue siendo el dueño del cumplimiento)</span></label><div id="f-collaborators-wrap" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;padding:6px 8px;border:1px solid var(--gray-light);border-radius:8px;background:#fff;cursor:text" onclick="document.getElementById('f-collab-input').focus()"><span id="f-collab-tags" style="display:contents"></span><input id="f-collab-input" placeholder="Escribe o selecciona…" style="border:none;outline:none;font-size:12px;min-width:120px;flex:1;padding:0;background:transparent" list="f-collab-datalist" autocomplete="off" onkeydown="collabInputKey(event)" oninput="collabInputFilter(this.value)"><datalist id="f-collab-datalist"></datalist></div></div>
@@ -1002,7 +1047,9 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[],positions:{}}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
+let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
+// Ausencias (vacaciones/permisos/incapacidades/comisiones) y cumpleaños
+let vacations={}, birthdays={}, calPerson='';
 
 // ── AUTH ──
 function doLogin(){
@@ -1026,12 +1073,14 @@ async function initFB(){
     db=firebase.database();
     badge('ok','Conectado');
     db.ref('tasks').on('value',s=>{tasks=s.val()||{};rebuildFilters();refresh();badge('ok','Sync');});
-    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[],areas:d.areas||[],positions:d.positions||{}};rebuildConfigSelects();});
+    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[],areas:d.areas||[]};rebuildConfigSelects();});
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();renderSprintModal();refresh();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();badge('ok','Sync');});
     db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();badge('ok','Sync');});
     db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();renderDashDaily();badge('ok','Sync');});
     db.ref('sprintHistory').on('value',s=>{sprintHistory=s.val()||{};console.log('[sprintHistory] keys:',Object.keys(sprintHistory));renderSprintLog();});
     db.ref('sprintBaseline').on('value',s=>{sprintBaselines=s.val()||{};refresh();});
+    db.ref('vacations').on('value',s=>{vacations=s.val()||{};renderPeopleLists();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();});
+    db.ref('birthdays').on('value',s=>{birthdays=s.val()||{};renderPeopleLists();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();});
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
@@ -1100,16 +1149,7 @@ function rebuildConfigSelects(){
 function renderConfigLists(){
   const al=document.getElementById('cfg-assignee-list');
   if(al){al.innerHTML=config.assignees.length
-    ?config.assignees.map((n,i)=>{
-      const pos=config.positions[n]||'';
-      return `<div class="config-item">
-        <span class="config-item-text">${esc(n)}${pos?` <span style="font-size:10px;font-weight:600;color:var(--gray);background:var(--gray-light);padding:1px 6px;border-radius:10px;margin-left:4px">${esc(pos)}</span>`:''}</span>
-        <div style="display:flex;gap:4px;align-items:center">
-          <button class="config-item-del" style="background:rgba(91,155,213,.12);color:var(--navy-mid);font-size:10px;padding:2px 7px" onclick="editAssigneePosition('${esc(n)}')">✏</button>
-          <button class="config-item-del" onclick="delAssignee(${i})">✕</button>
-        </div>
-      </div>`;
-    }).join('')
+    ?config.assignees.map((n,i)=>`<div class="config-item"><span class="config-item-text">${esc(n)}</span><button class="config-item-del" onclick="delAssignee(${i})">✕</button></div>`).join('')
     :'<div class="config-empty">Sin responsables definidos aún</div>';}
   const tl=document.getElementById('cfg-tag-list');
   if(tl){tl.innerHTML=config.tags.length
@@ -1147,7 +1187,134 @@ document.getElementById('cal-today-btn').onclick=()=>{
   const rows=document.querySelectorAll('#cal-content [style*="navy-mid"]');
   if(rows.length)rows[0].scrollIntoView({behavior:'smooth',block:'center'});
 };
+// ══ AUSENCIAS Y CUMPLEAÑOS ═════════════════════════════════════════════
+const AUS_TIPOS={
+  vacaciones :{lb:'Vacaciones',       icon:'🌴', color:'var(--green)'},
+  permiso    :{lb:'Permiso',          icon:'📄', color:'var(--navy-light)'},
+  incapacidad:{lb:'Incapacidad',      icon:'🏥', color:'var(--red)'},
+  comision   :{lb:'Viaje / comisión', icon:'✈️', color:'var(--purple)'}
+};
+function ausT(t){return AUS_TIPOS[t]||AUS_TIPOS.vacaciones;}
+function isoAdd(iso,n){const [y,m,d]=iso.split('-').map(Number);return new Date(Date.UTC(y,m-1,d+n)).toISOString().slice(0,10);}
+function isoDow(iso){const [y,m,d]=iso.split('-').map(Number);return new Date(Date.UTC(y,m-1,d)).getUTCDay();} // 0=dom 6=sab
+function todayIso(){const n=new Date();return [n.getFullYear(),String(n.getMonth()+1).padStart(2,'0'),String(n.getDate()).padStart(2,'0')].join('-');}
+function slugKey(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40)||'x';}
+// Días naturales y hábiles (L-V) de una ausencia
+function ausDias(a){
+  const end=a.end||a.start;let cur=a.start,nat=0,hab=0,g=0;
+  while(cur<=end&&g++<730){nat++;const dw=isoDow(cur);if(dw>=1&&dw<=5)hab++;cur=isoAdd(cur,1);}
+  return{nat,hab};
+}
+// Mapa "YYYY-MM-DD" → [ausencias]
+function buildAusMap(){
+  const map={};
+  Object.values(vacations).forEach(a=>{
+    if(!a||!a.start)return;
+    const end=a.end||a.start;let cur=a.start,g=0;
+    while(cur<=end&&g++<730){(map[cur]=map[cur]||[]).push(a);cur=isoAdd(cur,1);}
+  });
+  return map;
+}
+// Mapa "MM-DD" → [cumpleaños]
+function buildBdayMap(){
+  const map={};
+  Object.values(birthdays).forEach(b=>{if(!b||!b.md)return;(map[b.md]=map[b.md]||[]).push(b);});
+  return map;
+}
+function fmtMD(md){
+  const [m,d]=md.split('-').map(Number);
+  return new Date(Date.UTC(2026,m-1,d)).toLocaleDateString('es-MX',{day:'2-digit',month:'short',timeZone:'UTC'});
+}
+// Días faltantes para el próximo cumpleaños (0 = hoy)
+function daysToBday(md){
+  const t=todayIso(),y=Number(t.slice(0,4));
+  let next=y+'-'+md;
+  if(next<t)next=(y+1)+'-'+md;
+  return Math.round((new Date(next+'T00:00:00Z')-new Date(t+'T00:00:00Z'))/86400000);
+}
+
+function fillPeopleSelects(){
+  const opts=config.assignees.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  const ap=document.getElementById('aus-f-person');
+  if(ap){const cv=ap.value;ap.innerHTML='<option value="">— Seleccionar —</option>'+opts;ap.value=cv;}
+  const bp=document.getElementById('bd-f-person');
+  if(bp){const cv=bp.value;bp.innerHTML='<option value="">— Seleccionar persona —</option>'+opts;bp.value=cv;}
+  const at=document.getElementById('aus-f-type');
+  if(at&&!at.options.length)at.innerHTML=Object.entries(AUS_TIPOS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.lb}</option>`).join('');
+  const cf=document.getElementById('cal-filter-person');
+  if(cf){cf.innerHTML='<option value="">Todo el equipo</option>'+opts;cf.value=calPerson;}
+}
+function renderPeopleLists(){
+  const al=document.getElementById('aus-list');
+  if(al){
+    const showPast=document.getElementById('aus-show-past')?.checked;
+    const t=todayIso();
+    const arr=Object.values(vacations).filter(a=>a&&a.start).filter(a=>showPast||(a.end||a.start)>=t)
+      .sort((a,b)=>a.start.localeCompare(b.start));
+    al.innerHTML=arr.length?arr.map(a=>{
+      const ti=ausT(a.type),d=ausDias(a),past=(a.end||a.start)<t,live=a.start<=t&&(a.end||a.start)>=t;
+      return`<div class="config-item" style="opacity:${past?.55:1};border-left:3px solid ${ti.color}">
+        <span class="config-item-text">
+          <span style="font-weight:700">${ti.icon} ${esc(a.person)}</span>
+          <span style="color:var(--gray);font-size:11px"> · ${ti.lb}</span>
+          ${live?'<span style="font-size:9px;font-weight:800;color:var(--orange);margin-left:4px">EN CURSO</span>':''}
+          <div style="font-size:11px;color:var(--gray);margin-top:2px">${fmtD(a.start)} → ${fmtD(a.end||a.start)} · ${d.hab} día${d.hab===1?'':'s'} hábil${d.hab===1?'':'es'} (${d.nat} nat.)${a.note?' · '+esc(a.note):''}</div>
+        </span>
+        <button class="config-item-del" onclick="delAusencia('${a.id}')">✕</button>
+      </div>`;}).join('')
+      :'<div class="config-empty">Sin ausencias registradas</div>';
+  }
+  const bl=document.getElementById('bd-list');
+  if(bl){
+    const arr=Object.entries(birthdays).filter(([,b])=>b&&b.md).sort((a,b)=>a[1].md.localeCompare(b[1].md));
+    bl.innerHTML=arr.length?arr.map(([k,b])=>{
+      const dd=daysToBday(b.md);
+      return`<div class="config-item">
+        <span class="config-item-text">🎂 <b>${esc(b.person)}</b> <span style="color:var(--gray);font-size:11px">· ${fmtMD(b.md)} ${dd===0?'· ¡hoy!':'· en '+dd+' días'}</span></span>
+        <button class="config-item-del" onclick="delBirthday('${k}')">✕</button>
+      </div>`;}).join('')
+      :'<div class="config-empty">Sin cumpleaños registrados</div>';
+  }
+}
+async function addAusencia(){
+  const err=document.getElementById('aus-error');err.textContent='';
+  const person=document.getElementById('aus-f-person').value;
+  const type=document.getElementById('aus-f-type').value||'vacaciones';
+  const start=document.getElementById('aus-f-start').value;
+  const end=document.getElementById('aus-f-end').value||start;
+  const note=document.getElementById('aus-f-note').value.trim();
+  if(!person){err.textContent='Selecciona la persona.';return;}
+  if(!start){err.textContent='Falta la fecha de inicio.';return;}
+  if(end<start){err.textContent='La fecha fin no puede ser anterior al inicio.';return;}
+  const dup=Object.values(vacations).some(a=>a.person===person&&start<=(a.end||a.start)&&end>=a.start);
+  if(dup&&!confirm('Ya existe una ausencia traslapada para esta persona. ¿Registrar de todas formas?'))return;
+  const id=genId();
+  await fbSet('vacations/'+id,{id,person,type,start,end,note,createdAt:Date.now()});
+  document.getElementById('aus-f-note').value='';
+  document.getElementById('aus-f-start').value='';
+  document.getElementById('aus-f-end').value='';
+}
+async function delAusencia(id){
+  if(!confirm('¿Eliminar esta ausencia?'))return;
+  await fbDel('vacations/'+id);
+}
+async function saveBirthday(){
+  const err=document.getElementById('bd-error');err.textContent='';
+  const person=document.getElementById('bd-f-person').value;
+  const date=document.getElementById('bd-f-date').value;
+  if(!person){err.textContent='Selecciona la persona.';return;}
+  if(!date){err.textContent='Selecciona la fecha.';return;}
+  await fbSet('birthdays/'+slugKey(person),{person,md:date.slice(5)});
+  document.getElementById('bd-f-date').value='';
+}
+async function delBirthday(k){
+  if(!confirm('¿Eliminar este cumpleaños?'))return;
+  await fbDel('birthdays/'+k);
+}
+function openPeopleModal(){fillPeopleSelects();renderPeopleLists();openModal('modal-people');}
+
 function renderCalendar(){
+  fillPeopleSelects();
   const container=document.getElementById('cal-content');
   if(!container)return;
 
@@ -1232,6 +1399,11 @@ function renderCalendar(){
     }
   });
 
+  // ── Ausencias y cumpleaños indexados por día ─────────────────────────
+  const ausMap=buildAusMap();
+  const bdMap=buildBdayMap();
+  const pFilter=calPerson;
+
   const activeSprint=activeSp();
   const {week:todayWeek,year:todayYear}=isoWeekOfStr(todayStr);
   const todayWeekKey=todayYear+'-W'+String(todayWeek).padStart(2,'0');
@@ -1308,11 +1480,24 @@ function renderCalendar(){
         const isToday=iso===todayStr;
         const isWeekend=i>=5;
         const dayNum=fmtDayIso(iso);
-        return`<div style="text-align:center;padding:2px 1px">
-          <div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;
-            font-size:11px;font-weight:${isToday?'800':'400'};
-            background:${isToday?'var(--navy)':'transparent'};
-            color:${isToday?'#fff':!inYear||!inMonth?'var(--gray-light)':isWeekend?'var(--navy-light)':'var(--text)'}">${inYear?dayNum:''}</div>
+        const show=inYear&&inMonth;
+        const aus=show?(ausMap[iso]||[]).filter(a=>!pFilter||a.person===pFilter):[];
+        const bds=show?(bdMap[iso.slice(5)]||[]).filter(b=>!pFilter||b.person===pFilter):[];
+        const tip=[
+          ...aus.map(a=>`${ausT(a.type).icon} ${a.person} — ${ausT(a.type).lb}${a.note?' ('+a.note+')':''}`),
+          ...bds.map(b=>`🎂 Cumpleaños de ${b.person}`)
+        ].join(' | ');
+        const bars=aus.slice(0,3).map(a=>`<div style="height:3px;border-radius:2px;background:${ausT(a.type).color};flex:1;min-width:3px"></div>`).join('')
+          +(aus.length>3?`<div style="font-size:7px;color:var(--gray);line-height:3px">+${aus.length-3}</div>`:'');
+        return`<div style="text-align:center;padding:2px 1px"${tip?` title="${esc(tip)}"`:''}>
+          <div style="position:relative;width:22px;margin:0 auto">
+            <div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+              font-size:11px;font-weight:${isToday?'800':'400'};
+              background:${isToday?'var(--navy)':aus.length?'rgba(0,0,0,.03)':'transparent'};
+              color:${isToday?'#fff':!inYear||!inMonth?'var(--gray-light)':isWeekend?'var(--navy-light)':'var(--text)'}">${inYear?dayNum:''}</div>
+            ${bds.length?`<span style="position:absolute;top:-5px;right:-7px;font-size:9px;line-height:1">🎂</span>`:''}
+          </div>
+          <div style="display:flex;gap:1px;justify-content:center;align-items:center;height:3px;margin-top:2px;padding:0 2px">${bars}</div>
         </div>`;
       }).join('');
 
@@ -1357,9 +1542,52 @@ function renderCalendar(){
     </div>`;
   }).join('');
 
+  // ── Panel: ausencias vigentes/próximas ───────────────────────────────
+  const ausArr=Object.values(vacations).filter(a=>a&&a.start&&(a.end||a.start)>=todayStr)
+    .filter(a=>!pFilter||a.person===pFilter)
+    .sort((a,b)=>a.start.localeCompare(b.start)).slice(0,8);
+  const ausItems=ausArr.map(a=>{
+    const ti=ausT(a.type),d=ausDias(a),live=a.start<=todayStr;
+    return`<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;margin-bottom:5px;background:${live?'rgba(251,133,0,.07)':'var(--gray-pale)'}">
+      <div style="width:3px;height:30px;background:${ti.color};border-radius:2px;flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:700;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ti.icon} ${esc(a.person)}</div>
+        <div style="font-size:9.5px;color:var(--gray);margin-top:1px">${fmtShortIso(a.start)} → ${fmtShortIso(a.end||a.start)} · ${d.hab}d háb.</div>
+      </div>
+      ${live?'<span style="font-size:8px;font-weight:800;color:var(--orange);flex-shrink:0">HOY</span>':''}
+    </div>`;
+  }).join('');
+
+  // ── Panel: próximos cumpleaños ───────────────────────────────────────
+  const bdArr=Object.values(birthdays).filter(b=>b&&b.md)
+    .filter(b=>!pFilter||b.person===pFilter)
+    .map(b=>({...b,dd:daysToBday(b.md)})).sort((a,b)=>a.dd-b.dd).slice(0,6);
+  const bdItems=bdArr.map(b=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;margin-bottom:4px;background:${b.dd===0?'rgba(108,92,231,.1)':'var(--gray-pale)'}">
+      <span style="font-size:13px;flex-shrink:0">🎂</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:700;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.person)}</div>
+        <div style="font-size:9.5px;color:var(--gray)">${fmtMD(b.md)}</div>
+      </div>
+      <span style="font-size:9px;font-weight:800;color:${b.dd===0?'var(--purple)':'var(--gray-mid)'};flex-shrink:0">${b.dd===0?'¡HOY!':b.dd+'d'}</span>
+    </div>`).join('');
+
   const fullHTML=`<div style="display:grid;grid-template-columns:1fr 240px;gap:16px;align-items:start">
     <div>${calHTML}</div>
     <div style="position:sticky;top:72px;display:flex;flex-direction:column;gap:12px">
+      <div class="dash-card">
+        <div style="display:flex;align-items:center;margin-bottom:10px">
+          <div style="font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;flex:1">🌴 Ausencias</div>
+          <button onclick="openPeopleModal()" style="background:none;border:none;color:var(--navy-light);font-size:11px;font-weight:700;cursor:pointer;padding:0">＋</button>
+        </div>
+        ${ausItems||'<div style="font-size:11px;color:var(--gray);font-style:italic">Sin ausencias vigentes ni próximas</div>'}
+      </div>
+      <div class="dash-card">
+        <div style="display:flex;align-items:center;margin-bottom:10px">
+          <div style="font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;flex:1">🎂 Próximos cumpleaños</div>
+          <button onclick="openPeopleModal()" style="background:none;border:none;color:var(--navy-light);font-size:11px;font-weight:700;cursor:pointer;padding:0">＋</button>
+        </div>
+        ${bdItems||'<div style="font-size:11px;color:var(--gray);font-style:italic">Sin cumpleaños registrados</div>'}
+      </div>
       <div class="dash-card">
         <div style="font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Sprints asignados</div>
         ${legItems||'<div style="font-size:12px;color:var(--gray);font-style:italic">Sin sprints creados</div>'}
@@ -1372,6 +1600,9 @@ function renderCalendar(){
           <div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:7px;border-radius:3px;background:rgba(0,184,148,.2);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sprint cerrado</span></div>
           <div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:7px;border-radius:3px;background:rgba(10,110,160,.15);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sprint planeado</span></div>
           <div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:7px;border-radius:3px;background:var(--gray-light);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sin sprint</span></div>
+          <div style="height:1px;background:var(--gray-light);margin:3px 0"></div>
+          ${Object.values(AUS_TIPOS).map(t=>`<div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:3px;border-radius:2px;background:${t.color};flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">${t.icon} ${t.lb}</span></div>`).join('')}
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:18px;text-align:center;font-size:11px;flex-shrink:0">🎂</span><span style="font-size:11px;color:var(--gray)">Cumpleaños</span></div>
         </div>
       </div>
     </div>
@@ -1759,19 +1990,6 @@ document.getElementById('save-task').onclick=saveTask;
 document.getElementById('btn-delete-task').onclick=deleteTask;
 document.getElementById('modal-form').onclick=e=>{if(e.target===e.currentTarget)closeModal('modal-form');};
 
-function injectPositionPrefix(assignee){
-  if(editId)return; // En edición no tocar el título existente
-  const titleEl=document.getElementById('f-title');
-  if(!titleEl)return;
-  const pos=config.positions[assignee]||'';
-  const PREFIX_RE=/^[^·\n]+·\s*/; // Detecta cualquier prefijo "PUESTO · "
-  let cur=titleEl.value;
-  cur=cur.replace(PREFIX_RE,''); // Quitar prefijo anterior si existía
-  titleEl.value=pos?`${pos} · ${cur}`:cur;
-  titleEl.focus();
-  // Mover cursor al final
-  const len=titleEl.value.length;titleEl.setSelectionRange(len,len);
-}
 function openNewTask(){
   editId=null;
   document.getElementById('modal-form-title').textContent='Nueva tarea';
@@ -3114,9 +3332,19 @@ document.getElementById('btn-config').onclick=()=>{renderConfigLists();openModal
 document.getElementById('close-modal-config').onclick=()=>closeModal('modal-config');
 document.getElementById('cfg-close').onclick=()=>closeModal('modal-config');
 document.getElementById('modal-config').onclick=e=>{if(e.target===e.currentTarget)closeModal('modal-config');};
+// ── AUSENCIAS / CUMPLEAÑOS ──
+document.getElementById('cal-people-btn').onclick=openPeopleModal;
+document.getElementById('close-modal-people').onclick=()=>closeModal('modal-people');
+document.getElementById('people-close').onclick=()=>closeModal('modal-people');
+document.getElementById('modal-people').onclick=e=>{if(e.target===e.currentTarget)closeModal('modal-people');};
+document.getElementById('aus-add').onclick=addAusencia;
+document.getElementById('aus-show-past').onchange=renderPeopleLists;
+document.getElementById('bd-add').onclick=saveBirthday;
+document.getElementById('aus-f-start').onchange=e=>{const end=document.getElementById('aus-f-end');if(!end.value||end.value<e.target.value)end.value=e.target.value;};
+document.getElementById('cal-filter-person').onchange=e=>{calPerson=e.target.value;renderCalendar();};
+
 document.getElementById('cfg-assignee-add').onclick=addAssignee;
 document.getElementById('cfg-assignee-input').onkeydown=e=>{if(e.key==='Enter')addAssignee();};
-document.getElementById('cfg-position-input').onkeydown=e=>{if(e.key==='Enter')addAssignee();};
 document.getElementById('cfg-tag-add').onclick=addTag;
 document.getElementById('cfg-tag-input').onkeydown=e=>{if(e.key==='Enter')addTag();};
 document.getElementById('cfg-area-add').onclick=addArea;
@@ -3124,33 +3352,14 @@ document.getElementById('cfg-area-input').onkeydown=e=>{if(e.key==='Enter')addAr
 
 async function addAssignee(){
   const inp=document.getElementById('cfg-assignee-input');
-  const pinp=document.getElementById('cfg-position-input');
   const v=inp.value.trim();if(!v)return;
   if(config.assignees.includes(v)){inp.select();return;}
-  const pos=pinp.value.trim();
   await fbSet('config/assignees',[...config.assignees,v].sort());
-  if(pos){
-    const newPositions={...config.positions,[v]:pos};
-    await fbSet('config/positions',newPositions);
-  }
-  inp.value='';pinp.value='';inp.focus();
+  inp.value='';inp.focus();
 }
 async function delAssignee(i){
   if(!confirm('¿Eliminar este responsable?'))return;
-  const name=config.assignees[i];
   await fbSet('config/assignees',config.assignees.filter((_,idx)=>idx!==i));
-  if(name&&config.positions[name]){
-    const newPos={...config.positions};delete newPos[name];
-    await fbSet('config/positions',Object.keys(newPos).length?newPos:null);
-  }
-}
-async function editAssigneePosition(name){
-  const cur=config.positions[name]||'';
-  const np=prompt(`Puesto de ${name}:`,cur);
-  if(np===null)return;
-  const newPos={...config.positions,[name]:np.trim()};
-  if(!np.trim())delete newPos[name];
-  await fbSet('config/positions',Object.keys(newPos).length?newPos:null);
 }
 async function addTag(){
   const inp=document.getElementById('cfg-tag-input');
