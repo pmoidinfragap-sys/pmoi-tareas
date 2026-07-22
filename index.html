@@ -771,7 +771,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
           <span style="font-size:13px;font-weight:700;color:var(--navy)">📅 Calendario 2026 — Semanas de sprint</span>
           <div style="flex:1"></div>
           <select class="filter-select" id="cal-filter-person" style="font-size:11px"><option value="">Todo el equipo</option></select>
-          <button id="cal-people-btn" style="padding:5px 14px;background:#fff;color:var(--navy);border:1px solid var(--gray-mid);border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">🌴 Ausencias y 🎂 cumpleaños</button>
+          <button id="cal-people-btn" style="padding:5px 14px;background:#fff;color:var(--navy);border:1px solid var(--gray-mid);border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">🌴 Ausencias · ✈️ Viajes · 🎂 Cumpleaños</button>
           <button id="cal-today-btn" style="padding:5px 14px;background:var(--orange);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">Hoy</button>
         </div>
         <div id="cal-content" style="padding:16px 0"></div>
@@ -860,7 +860,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 <div class="modal-overlay" id="modal-people">
   <div class="modal" style="max-width:560px">
     <div class="modal-header">
-      <span class="modal-title">🌴 Ausencias y 🎂 cumpleaños</span>
+      <span class="modal-title">🌴 Ausencias · ✈️ Viajes · 🎂 Cumpleaños</span>
       <button class="modal-close" id="close-modal-people">✕</button>
     </div>
     <div class="modal-body">
@@ -881,6 +881,25 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
           <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray);cursor:pointer"><input type="checkbox" id="aus-show-past" style="accent-color:var(--navy)"> Ver pasadas</label>
         </div>
         <div class="config-list" id="aus-list"></div>
+      </div>
+      <div class="config-section">
+        <div class="config-section-title">✈️ Registrar viaje</div>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;line-height:1.5">Comisiones a aeropuertos u otras sedes. <b>No es ausencia</b>: la persona sigue disponible, pero fuera de oficina — útil para no agendar sesiones presenciales ni dailies en sitio.</div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Persona *</label><select class="form-select" id="via-f-person"><option value="">— Seleccionar —</option></select></div>
+          <div class="form-group"><label class="form-label">Destino *</label><input class="form-input" id="via-f-dest" list="via-dest-datalist" placeholder="Ej: MXL — Mexicali" maxlength="50" autocomplete="off"><datalist id="via-dest-datalist"></datalist></div>
+          <div class="form-group"><label class="form-label">Motivo</label><select class="form-select" id="via-f-purpose"></select></div>
+          <div class="form-group"><label class="form-label">Proyecto / nota</label><input class="form-input" id="via-f-note" placeholder="Opcional: proyecto, contrato..." maxlength="90"></div>
+          <div class="form-group"><label class="form-label">Salida *</label><input class="form-input" type="date" id="via-f-start"></div>
+          <div class="form-group"><label class="form-label">Regreso *</label><input class="form-input" type="date" id="via-f-end"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn-save" id="via-add">＋ Agregar viaje</button></div>
+        <div id="via-error" style="font-size:11px;color:var(--red);font-weight:600;margin-top:6px"></div>
+        <div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px">
+          <div class="config-section-title" style="margin:0;flex:1">Registrados</div>
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray);cursor:pointer"><input type="checkbox" id="via-show-past" style="accent-color:var(--navy)"> Ver pasados</label>
+        </div>
+        <div class="config-list" id="via-list"></div>
       </div>
       <div class="config-section">
         <div class="config-section-title">🎂 Cumpleaños del equipo</div>
@@ -1049,7 +1068,7 @@ const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
 let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
 // Ausencias (vacaciones/permisos/incapacidades/comisiones) y cumpleaños
-let vacations={}, birthdays={}, calPerson='';
+let vacations={}, birthdays={}, trips={}, calPerson='';
 
 // ── AUTH ──
 function doLogin(){
@@ -1081,6 +1100,7 @@ async function initFB(){
     db.ref('sprintBaseline').on('value',s=>{sprintBaselines=s.val()||{};refresh();});
     db.ref('vacations').on('value',s=>{vacations=s.val()||{};renderPeopleLists();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();});
     db.ref('birthdays').on('value',s=>{birthdays=s.val()||{};renderPeopleLists();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();});
+    db.ref('trips').on('value',s=>{trips=s.val()||{};renderPeopleLists();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();});
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
@@ -1189,12 +1209,18 @@ document.getElementById('cal-today-btn').onclick=()=>{
 };
 // ══ AUSENCIAS Y CUMPLEAÑOS ═════════════════════════════════════════════
 const AUS_TIPOS={
-  vacaciones :{lb:'Vacaciones',       icon:'🌴', color:'var(--green)'},
-  permiso    :{lb:'Permiso',          icon:'📄', color:'var(--navy-light)'},
-  incapacidad:{lb:'Incapacidad',      icon:'🏥', color:'var(--red)'},
-  comision   :{lb:'Viaje / comisión', icon:'✈️', color:'var(--purple)'}
+  vacaciones :{lb:'Vacaciones',  icon:'🌴', color:'var(--green)'},
+  permiso    :{lb:'Permiso',     icon:'📄', color:'var(--navy-light)'},
+  incapacidad:{lb:'Incapacidad', icon:'🏥', color:'var(--red)'},
+  // Legado: reemplazado por el módulo de Viajes. Se conserva solo para que
+  // los registros previos sigan renderizando; no aparece en el formulario.
+  comision   :{lb:'Comisión (legado)', icon:'✈️', color:'var(--gray)', legacy:true}
 };
 function ausT(t){return AUS_TIPOS[t]||AUS_TIPOS.vacaciones;}
+// ── VIAJES ──
+const VIA_COLOR='var(--purple)';
+const VIA_MOTIVOS=['Supervisión de obra','Reunión / junta','Recorrido técnico','Capacitación','Auditoría / verificación','Entrega-recepción','Otro'];
+const GAP_DESTINOS=['GDL — Guadalajara','TIJ — Tijuana','PVR — Puerto Vallarta','SJD — Los Cabos','BJX — Bajío','HMO — Hermosillo','MXL — Mexicali','LAP — La Paz','AGU — Aguascalientes','MLM — Morelia','ZLO — Manzanillo','LMM — Los Mochis','Torre Pacífico — GDL','CDMX','Otro'];
 function isoAdd(iso,n){const [y,m,d]=iso.split('-').map(Number);return new Date(Date.UTC(y,m-1,d+n)).toISOString().slice(0,10);}
 function isoDow(iso){const [y,m,d]=iso.split('-').map(Number);return new Date(Date.UTC(y,m-1,d)).getUTCDay();} // 0=dom 6=sab
 function todayIso(){const n=new Date();return [n.getFullYear(),String(n.getMonth()+1).padStart(2,'0'),String(n.getDate()).padStart(2,'0')].join('-');}
@@ -1212,6 +1238,16 @@ function buildAusMap(){
     if(!a||!a.start)return;
     const end=a.end||a.start;let cur=a.start,g=0;
     while(cur<=end&&g++<730){(map[cur]=map[cur]||[]).push(a);cur=isoAdd(cur,1);}
+  });
+  return map;
+}
+// Mapa "YYYY-MM-DD" → [viajes]
+function buildTripMap(){
+  const map={};
+  Object.values(trips).forEach(v=>{
+    if(!v||!v.start)return;
+    const end=v.end||v.start;let cur=v.start,g=0;
+    while(cur<=end&&g++<730){(map[cur]=map[cur]||[]).push(v);cur=isoAdd(cur,1);}
   });
   return map;
 }
@@ -1240,7 +1276,13 @@ function fillPeopleSelects(){
   const bp=document.getElementById('bd-f-person');
   if(bp){const cv=bp.value;bp.innerHTML='<option value="">— Seleccionar persona —</option>'+opts;bp.value=cv;}
   const at=document.getElementById('aus-f-type');
-  if(at&&!at.options.length)at.innerHTML=Object.entries(AUS_TIPOS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.lb}</option>`).join('');
+  if(at&&!at.options.length)at.innerHTML=Object.entries(AUS_TIPOS).filter(([,v])=>!v.legacy).map(([k,v])=>`<option value="${k}">${v.icon} ${v.lb}</option>`).join('');
+  const vp=document.getElementById('via-f-person');
+  if(vp){const cv=vp.value;vp.innerHTML='<option value="">— Seleccionar —</option>'+opts;vp.value=cv;}
+  const vm=document.getElementById('via-f-purpose');
+  if(vm&&!vm.options.length)vm.innerHTML=VIA_MOTIVOS.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  const vd=document.getElementById('via-dest-datalist');
+  if(vd&&!vd.children.length)vd.innerHTML=GAP_DESTINOS.map(d=>`<option value="${esc(d)}">`).join('');
   const cf=document.getElementById('cal-filter-person');
   if(cf){cf.innerHTML='<option value="">Todo el equipo</option>'+opts;cf.value=calPerson;}
 }
@@ -1263,6 +1305,25 @@ function renderPeopleLists(){
         <button class="config-item-del" onclick="delAusencia('${a.id}')">✕</button>
       </div>`;}).join('')
       :'<div class="config-empty">Sin ausencias registradas</div>';
+  }
+  const vl=document.getElementById('via-list');
+  if(vl){
+    const showPast=document.getElementById('via-show-past')?.checked;
+    const t=todayIso();
+    const arr=Object.values(trips).filter(v=>v&&v.start).filter(v=>showPast||(v.end||v.start)>=t)
+      .sort((a,b)=>a.start.localeCompare(b.start));
+    vl.innerHTML=arr.length?arr.map(v=>{
+      const d=ausDias(v),past=(v.end||v.start)<t,live=v.start<=t&&(v.end||v.start)>=t;
+      return`<div class="config-item" style="opacity:${past?.55:1};border-left:3px solid ${VIA_COLOR}">
+        <span class="config-item-text">
+          <span style="font-weight:700">✈️ ${esc(v.person)}</span>
+          <span style="color:var(--purple);font-size:11px;font-weight:700"> → ${esc(v.destination)}</span>
+          ${live?'<span style="font-size:9px;font-weight:800;color:var(--orange);margin-left:4px">EN SITIO</span>':''}
+          <div style="font-size:11px;color:var(--gray);margin-top:2px">${fmtD(v.start)} → ${fmtD(v.end||v.start)} · ${d.nat} día${d.nat===1?'':'s'}${v.purpose?' · '+esc(v.purpose):''}${v.note?' · '+esc(v.note):''}</div>
+        </span>
+        <button class="config-item-del" onclick="delViaje('${v.id}')">✕</button>
+      </div>`;}).join('')
+      :'<div class="config-empty">Sin viajes registrados</div>';
   }
   const bl=document.getElementById('bd-list');
   if(bl){
@@ -1297,6 +1358,34 @@ async function addAusencia(){
 async function delAusencia(id){
   if(!confirm('¿Eliminar esta ausencia?'))return;
   await fbDel('vacations/'+id);
+}
+async function addViaje(){
+  const err=document.getElementById('via-error');err.textContent='';
+  const person=document.getElementById('via-f-person').value;
+  const destination=document.getElementById('via-f-dest').value.trim();
+  const purpose=document.getElementById('via-f-purpose').value;
+  const start=document.getElementById('via-f-start').value;
+  const end=document.getElementById('via-f-end').value||start;
+  const note=document.getElementById('via-f-note').value.trim();
+  if(!person){err.textContent='Selecciona la persona.';return;}
+  if(!destination){err.textContent='Falta el destino.';return;}
+  if(!start){err.textContent='Falta la fecha de salida.';return;}
+  if(end<start){err.textContent='El regreso no puede ser anterior a la salida.';return;}
+  // Conflicto real: viajar mientras se está de vacaciones/incapacidad
+  const conflicto=Object.values(vacations).find(a=>a.person===person&&start<=(a.end||a.start)&&end>=a.start);
+  if(conflicto&&!confirm(`⚠ ${person} tiene registrada una ausencia (${ausT(conflicto.type).lb}) que se traslapa con este viaje.\n\n¿Registrar de todas formas?`))return;
+  const dup=Object.values(trips).some(v=>v.person===person&&start<=(v.end||v.start)&&end>=v.start);
+  if(dup&&!confirm('Ya existe otro viaje traslapado para esta persona. ¿Registrar de todas formas?'))return;
+  const id=genId();
+  await fbSet('trips/'+id,{id,person,destination,purpose,start,end,note,createdAt:Date.now()});
+  document.getElementById('via-f-dest').value='';
+  document.getElementById('via-f-note').value='';
+  document.getElementById('via-f-start').value='';
+  document.getElementById('via-f-end').value='';
+}
+async function delViaje(id){
+  if(!confirm('¿Eliminar este viaje?'))return;
+  await fbDel('trips/'+id);
 }
 async function saveBirthday(){
   const err=document.getElementById('bd-error');err.textContent='';
@@ -1401,6 +1490,7 @@ function renderCalendar(){
 
   // ── Ausencias y cumpleaños indexados por día ─────────────────────────
   const ausMap=buildAusMap();
+  const viaMap=buildTripMap();
   const bdMap=buildBdayMap();
   const pFilter=calPerson;
 
@@ -1482,20 +1572,24 @@ function renderCalendar(){
         const dayNum=fmtDayIso(iso);
         const show=inYear&&inMonth;
         const aus=show?(ausMap[iso]||[]).filter(a=>!pFilter||a.person===pFilter):[];
+        const via=show?(viaMap[iso]||[]).filter(v=>!pFilter||v.person===pFilter):[];
         const bds=show?(bdMap[iso.slice(5)]||[]).filter(b=>!pFilter||b.person===pFilter):[];
         const tip=[
           ...aus.map(a=>`${ausT(a.type).icon} ${a.person} — ${ausT(a.type).lb}${a.note?' ('+a.note+')':''}`),
+          ...via.map(v=>`✈️ ${v.person} → ${v.destination}${v.purpose?' ('+v.purpose+')':''}`),
           ...bds.map(b=>`🎂 Cumpleaños de ${b.person}`)
         ].join(' | ');
-        const bars=aus.slice(0,3).map(a=>`<div style="height:3px;border-radius:2px;background:${ausT(a.type).color};flex:1;min-width:3px"></div>`).join('')
-          +(aus.length>3?`<div style="font-size:7px;color:var(--gray);line-height:3px">+${aus.length-3}</div>`:'');
+        const marks=[...aus.map(a=>ausT(a.type).color),...via.map(()=>VIA_COLOR)];
+        const bars=marks.slice(0,3).map(c=>`<div style="height:3px;border-radius:2px;background:${c};flex:1;min-width:3px"></div>`).join('')
+          +(marks.length>3?`<div style="font-size:7px;color:var(--gray);line-height:3px">+${marks.length-3}</div>`:'');
         return`<div style="text-align:center;padding:2px 1px"${tip?` title="${esc(tip)}"`:''}>
           <div style="position:relative;width:22px;margin:0 auto">
             <div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
               font-size:11px;font-weight:${isToday?'800':'400'};
-              background:${isToday?'var(--navy)':aus.length?'rgba(0,0,0,.03)':'transparent'};
+              background:${isToday?'var(--navy)':marks.length?'rgba(0,0,0,.03)':'transparent'};
               color:${isToday?'#fff':!inYear||!inMonth?'var(--gray-light)':isWeekend?'var(--navy-light)':'var(--text)'}">${inYear?dayNum:''}</div>
             ${bds.length?`<span style="position:absolute;top:-5px;right:-7px;font-size:9px;line-height:1">🎂</span>`:''}
+            ${via.length?`<span style="position:absolute;top:-5px;left:-7px;font-size:8px;line-height:1">✈️</span>`:''}
           </div>
           <div style="display:flex;gap:1px;justify-content:center;align-items:center;height:3px;margin-top:2px;padding:0 2px">${bars}</div>
         </div>`;
@@ -1558,6 +1652,23 @@ function renderCalendar(){
     </div>`;
   }).join('');
 
+  // ── Panel: viajes en curso/próximos ──────────────────────────────────
+  const viaArr=Object.values(trips).filter(v=>v&&v.start&&(v.end||v.start)>=todayStr)
+    .filter(v=>!pFilter||v.person===pFilter)
+    .sort((a,b)=>a.start.localeCompare(b.start)).slice(0,8);
+  const viaItems=viaArr.map(v=>{
+    const d=ausDias(v),live=v.start<=todayStr;
+    return`<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;margin-bottom:5px;background:${live?'rgba(108,92,231,.1)':'var(--gray-pale)'}">
+      <div style="width:3px;height:30px;background:${VIA_COLOR};border-radius:2px;flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:700;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">✈️ ${esc(v.person)}</div>
+        <div style="font-size:9.5px;color:var(--purple);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.destination)}</div>
+        <div style="font-size:9.5px;color:var(--gray);margin-top:1px">${fmtShortIso(v.start)} → ${fmtShortIso(v.end||v.start)} · ${d.nat}d</div>
+      </div>
+      ${live?'<span style="font-size:8px;font-weight:800;color:var(--orange);flex-shrink:0">EN<br>SITIO</span>':''}
+    </div>`;
+  }).join('');
+
   // ── Panel: próximos cumpleaños ───────────────────────────────────────
   const bdArr=Object.values(birthdays).filter(b=>b&&b.md)
     .filter(b=>!pFilter||b.person===pFilter)
@@ -1583,6 +1694,13 @@ function renderCalendar(){
       </div>
       <div class="dash-card">
         <div style="display:flex;align-items:center;margin-bottom:10px">
+          <div style="font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;flex:1">✈️ Viajes</div>
+          <button onclick="openPeopleModal()" style="background:none;border:none;color:var(--navy-light);font-size:11px;font-weight:700;cursor:pointer;padding:0">＋</button>
+        </div>
+        ${viaItems||'<div style="font-size:11px;color:var(--gray);font-style:italic">Sin viajes en curso ni próximos</div>'}
+      </div>
+      <div class="dash-card">
+        <div style="display:flex;align-items:center;margin-bottom:10px">
           <div style="font-size:11px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;flex:1">🎂 Próximos cumpleaños</div>
           <button onclick="openPeopleModal()" style="background:none;border:none;color:var(--navy-light);font-size:11px;font-weight:700;cursor:pointer;padding:0">＋</button>
         </div>
@@ -1601,7 +1719,8 @@ function renderCalendar(){
           <div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:7px;border-radius:3px;background:rgba(10,110,160,.15);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sprint planeado</span></div>
           <div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:7px;border-radius:3px;background:var(--gray-light);flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">Sin sprint</span></div>
           <div style="height:1px;background:var(--gray-light);margin:3px 0"></div>
-          ${Object.values(AUS_TIPOS).map(t=>`<div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:3px;border-radius:2px;background:${t.color};flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">${t.icon} ${t.lb}</span></div>`).join('')}
+          ${Object.values(AUS_TIPOS).filter(t=>!t.legacy).map(t=>`<div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:3px;border-radius:2px;background:${t.color};flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">${t.icon} ${t.lb}</span></div>`).join('')}
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:18px;height:3px;border-radius:2px;background:${VIA_COLOR};flex-shrink:0"></div><span style="font-size:11px;color:var(--gray)">✈️ Viaje / comisión</span></div>
           <div style="display:flex;align-items:center;gap:8px"><span style="width:18px;text-align:center;font-size:11px;flex-shrink:0">🎂</span><span style="font-size:11px;color:var(--gray)">Cumpleaños</span></div>
         </div>
       </div>
@@ -3339,6 +3458,9 @@ document.getElementById('people-close').onclick=()=>closeModal('modal-people');
 document.getElementById('modal-people').onclick=e=>{if(e.target===e.currentTarget)closeModal('modal-people');};
 document.getElementById('aus-add').onclick=addAusencia;
 document.getElementById('aus-show-past').onchange=renderPeopleLists;
+document.getElementById('via-add').onclick=addViaje;
+document.getElementById('via-show-past').onchange=renderPeopleLists;
+document.getElementById('via-f-start').onchange=e=>{const end=document.getElementById('via-f-end');if(!end.value||end.value<e.target.value)end.value=e.target.value;};
 document.getElementById('bd-add').onclick=saveBirthday;
 document.getElementById('aus-f-start').onchange=e=>{const end=document.getElementById('aus-f-end');if(!end.value||end.value<e.target.value)end.value=e.target.value;};
 document.getElementById('cal-filter-person').onchange=e=>{calPerson=e.target.value;renderCalendar();};
