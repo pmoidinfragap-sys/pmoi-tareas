@@ -145,6 +145,70 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 
 /* NAV */
 .nav{background:#fff;border-bottom:1px solid var(--gray-light);display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+/* ══ NOTAS (estilo OneNote) ══════════════════════════════════════════ */
+.nt-wrap{display:grid;grid-template-columns:210px 230px 1fr;gap:0;background:#fff;border:1px solid var(--gray-light);border-radius:12px;overflow:hidden;height:calc(100vh - 190px);min-height:460px;}
+.nt-col{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--gray-light);}
+.nt-col:last-child{border-right:none;}
+.nt-col-hd{display:flex;align-items:center;gap:6px;padding:9px 11px;border-bottom:1px solid var(--gray-light);background:var(--gray-pale);flex-shrink:0;}
+.nt-col-title{font-size:10px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;flex:1;white-space:nowrap;overflow:hidden;}
+.nt-add{background:none;border:none;color:var(--navy-light);font-size:15px;font-weight:700;cursor:pointer;padding:0 3px;line-height:1;flex-shrink:0;}
+.nt-add:hover{color:var(--orange);}
+.nt-list{flex:1;overflow-y:auto;padding:5px;}
+.nt-item{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:7px;cursor:pointer;margin-bottom:2px;transition:background .12s;position:relative;}
+.nt-item:hover{background:var(--gray-pale);}
+.nt-item.active{background:rgba(10,110,160,.11);}
+.nt-item.active .nt-item-name{color:var(--navy);font-weight:700;}
+.nt-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
+.nt-item-name{flex:1;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.nt-item-sub{font-size:9.5px;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nt-item-menu{opacity:0;background:none;border:none;color:var(--gray);font-size:13px;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1;}
+.nt-item:hover .nt-item-menu{opacity:1;}
+.nt-item-menu:hover{color:var(--red);}
+.nt-count{font-size:9px;font-weight:700;color:var(--gray);background:var(--gray-light);border-radius:9px;padding:1px 6px;flex-shrink:0;}
+.nt-empty{font-size:11px;color:var(--gray);font-style:italic;text-align:center;padding:18px 10px;line-height:1.6;}
+.nt-search{width:100%;border:1px solid var(--gray-light);border-radius:7px;padding:6px 9px;font-size:11.5px;font-family:inherit;outline:none;background:#fff;}
+.nt-search:focus{border-color:var(--navy-light);}
+.nt-editor-hd{padding:11px 18px 0;flex-shrink:0;}
+.nt-title-inp{width:100%;border:none;outline:none;font-size:21px;font-weight:800;color:var(--navy);font-family:inherit;padding:2px 0;background:transparent;}
+.nt-title-inp::placeholder{color:var(--gray-light);}
+.nt-meta{font-size:10px;color:var(--gray);margin:2px 0 8px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.nt-tb{display:flex;align-items:center;gap:1px;flex-wrap:wrap;padding:5px 14px;border-top:1px solid var(--gray-light);border-bottom:1px solid var(--gray-light);background:var(--gray-pale);flex-shrink:0;}
+.nt-tb button{background:none;border:none;border-radius:5px;cursor:pointer;font-size:12px;color:var(--navy);padding:4px 7px;min-width:26px;line-height:1.3;font-family:inherit;transition:background .12s;}
+.nt-tb button:hover{background:rgba(10,110,160,.13);}
+.nt-tb-sep{width:1px;height:16px;background:var(--gray-light);margin:0 4px;flex-shrink:0;}
+.nt-body{flex:1;overflow-y:auto;padding:14px 18px 60px;font-size:13.5px;line-height:1.65;color:var(--text);outline:none;}
+.nt-body:empty:before{content:attr(data-ph);color:var(--gray-light);pointer-events:none;}
+.nt-body h1{font-size:19px;font-weight:800;color:var(--navy);margin:14px 0 6px;}
+.nt-body h2{font-size:15.5px;font-weight:700;color:var(--navy);margin:12px 0 5px;}
+.nt-body h3{font-size:13.5px;font-weight:700;color:var(--navy-light);margin:10px 0 4px;}
+.nt-body p{margin:0 0 7px;}
+.nt-body ul,.nt-body ol{margin:0 0 8px;padding-left:22px;}
+.nt-body li{margin-bottom:3px;}
+.nt-body blockquote{border-left:3px solid var(--navy-light);background:var(--gray-pale);margin:8px 0;padding:7px 12px;border-radius:0 7px 7px 0;color:var(--gray);}
+.nt-body code{background:var(--gray-pale);border:1px solid var(--gray-light);border-radius:4px;padding:1px 5px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--red);}
+.nt-body pre{background:var(--navy);color:#e8eef4;border-radius:8px;padding:11px 13px;overflow-x:auto;margin:9px 0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;}
+.nt-body pre code{background:none;border:none;color:inherit;padding:0;}
+.nt-body a{color:var(--navy-light);text-decoration:underline;}
+.nt-body table{border-collapse:collapse;margin:9px 0;width:100%;}
+.nt-body th,.nt-body td{border:1px solid var(--gray-light);padding:6px 9px;font-size:12.5px;text-align:left;}
+.nt-body th{background:var(--gray-pale);font-weight:700;color:var(--navy);}
+.nt-body hr{border:none;border-top:1px solid var(--gray-light);margin:13px 0;}
+.nt-body img{max-width:100%;border-radius:7px;margin:6px 0;}
+.nt-todo{list-style:none;padding-left:2px;margin:0 0 8px;}
+.nt-todo li{display:flex;align-items:flex-start;gap:7px;margin-bottom:4px;}
+.nt-todo input[type=checkbox]{margin-top:3px;accent-color:var(--navy);flex-shrink:0;cursor:pointer;}
+.nt-todo input[type=checkbox]:checked + span{text-decoration:line-through;color:var(--gray);}
+.nt-save{font-size:10px;font-weight:700;padding:2px 8px;border-radius:9px;white-space:nowrap;}
+.nt-save.dirty{background:rgba(251,133,0,.14);color:var(--orange);}
+.nt-save.ok{background:rgba(0,184,148,.13);color:var(--green);}
+.nt-blank{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--gray);text-align:center;padding:30px;}
+.nt-hit{background:rgba(241,196,15,.45);border-radius:2px;}
+@media(max-width:900px){
+  .nt-wrap{grid-template-columns:1fr;height:auto;min-height:0;}
+  .nt-col{border-right:none;border-bottom:1px solid var(--gray-light);}
+  .nt-col:nth-child(1) .nt-list,.nt-col:nth-child(2) .nt-list{max-height:160px;}
+  .nt-body{min-height:300px;}
+}
 .nav-btn{flex-shrink:0;padding:10px 20px;border:none;background:transparent;font-size:13px;font-weight:600;color:var(--gray);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
 .nav-btn.active{color:var(--navy);border-bottom-color:var(--orange);}
 .nav-btn:hover:not(.active){color:var(--navy);background:var(--gray-pale);}
@@ -650,6 +714,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
       <button class="nav-btn" id="nav-okr">🎯 OKRs</button>
       <button class="nav-btn" id="nav-sprintlog">📦 Sprints</button>
       <button class="nav-btn" id="nav-calendar">📅 Calendario</button>
+      <button class="nav-btn" id="nav-notes">📝 Notas</button>
     </div>
   </div>
 
@@ -783,6 +848,81 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
           <button id="cal-today-btn" style="padding:5px 14px;background:var(--orange);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">Hoy</button>
         </div>
         <div id="cal-content" style="padding:16px 0"></div>
+      </div>
+    </div>
+
+    <!-- ── PÁGINA: NOTAS ── -->
+    <div id="page-notes" class="page">
+      <div class="nt-wrap">
+
+        <!-- Columna 1: secciones -->
+        <div class="nt-col">
+          <div class="nt-col-hd">
+            <span class="nt-col-title">📚 Secciones</span>
+            <button class="nt-add" id="nt-sec-add" title="Nueva sección">＋</button>
+          </div>
+          <div class="nt-list" id="nt-sec-list"></div>
+        </div>
+
+        <!-- Columna 2: páginas -->
+        <div class="nt-col">
+          <div class="nt-col-hd">
+            <span class="nt-col-title" id="nt-pg-title">📄 Páginas</span>
+            <button class="nt-add" id="nt-pg-add" title="Nueva página">＋</button>
+          </div>
+          <div style="padding:7px 8px 0;flex-shrink:0">
+            <input class="nt-search" id="nt-search" placeholder="🔎 Buscar en todas las notas..." autocomplete="off">
+          </div>
+          <div class="nt-list" id="nt-pg-list"></div>
+        </div>
+
+        <!-- Columna 3: editor -->
+        <div class="nt-col" id="nt-editor-col">
+          <div id="nt-blank" class="nt-blank">
+            <div style="font-size:34px;margin-bottom:8px">📝</div>
+            <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px">Sin página seleccionada</div>
+            <div style="font-size:11.5px;line-height:1.6;max-width:250px">Crea una sección, luego una página, y empieza a escribir.<br>El guardado es automático y se comparte con el equipo.</div>
+          </div>
+          <div id="nt-editor-pane" style="display:none;flex:1;flex-direction:column;min-height:0">
+            <div class="nt-editor-hd">
+              <input class="nt-title-inp" id="nt-title" placeholder="Título de la página..." maxlength="120">
+              <div class="nt-meta">
+                <span id="nt-breadcrumb"></span>
+                <span id="nt-updated"></span>
+                <span style="flex:1"></span>
+                <span class="nt-save ok" id="nt-save-state">Guardado</span>
+                <button id="nt-print" style="background:none;border:none;color:var(--navy-light);font-size:11px;font-weight:700;cursor:pointer;padding:0">🖨 Imprimir</button>
+              </div>
+            </div>
+            <div class="nt-tb">
+              <button data-cmd="bold" title="Negrita (Ctrl+B)"><b>B</b></button>
+              <button data-cmd="italic" title="Cursiva (Ctrl+I)"><i>I</i></button>
+              <button data-cmd="underline" title="Subrayado (Ctrl+U)"><u>U</u></button>
+              <button data-cmd="strikeThrough" title="Tachado"><s>S</s></button>
+              <span class="nt-tb-sep"></span>
+              <button data-block="h1" title="Título 1">H1</button>
+              <button data-block="h2" title="Título 2">H2</button>
+              <button data-block="h3" title="Título 3">H3</button>
+              <button data-block="p" title="Texto normal">¶</button>
+              <span class="nt-tb-sep"></span>
+              <button data-cmd="insertUnorderedList" title="Viñetas">•—</button>
+              <button data-cmd="insertOrderedList" title="Numerada">1.</button>
+              <button id="nt-todo" title="Casilla de tarea">☑</button>
+              <span class="nt-tb-sep"></span>
+              <button id="nt-hl" title="Resaltar">🖍</button>
+              <button data-block="blockquote" title="Cita">❝</button>
+              <button id="nt-code" title="Código">&lt;/&gt;</button>
+              <button id="nt-table" title="Insertar tabla">▦</button>
+              <button data-cmd="insertHorizontalRule" title="Separador">―</button>
+              <span class="nt-tb-sep"></span>
+              <button id="nt-link" title="Vínculo">🔗</button>
+              <button id="nt-date" title="Insertar fecha de hoy">📅</button>
+              <button data-cmd="removeFormat" title="Limpiar formato">⌫</button>
+            </div>
+            <div class="nt-body" id="nt-body" contenteditable="true" spellcheck="true" data-ph="Escribe aquí..."></div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -1082,6 +1222,9 @@ const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[],roles:{}}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
 // Ausencias (vacaciones/permisos/incapacidades/comisiones) y cumpleaños
 let vacations={}, birthdays={}, trips={}, calPerson='';
+// Notas (estilo OneNote): secciones → páginas
+let noteSections={}, notePages={}, curSection=null, curPage=null,
+    ntTimer=null, ntDirty=false, ntSearch='';
 
 // ── AUTH ──
 function doLogin(){
@@ -1114,6 +1257,8 @@ async function initFB(){
     db.ref('vacations').on('value',s=>{vacations=s.val()||{};renderPeopleLists();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();});
     db.ref('birthdays').on('value',s=>{birthdays=s.val()||{};renderPeopleLists();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();});
     db.ref('trips').on('value',s=>{trips=s.val()||{};renderPeopleLists();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();});
+    db.ref('notes/sections').on('value',s=>{noteSections=s.val()||{};renderNotes();});
+    db.ref('notes/pages').on('value',s=>{notePages=s.val()||{};renderNotes();});
   }catch(e){badge('wait','Sin conexion');}
 }
 function badge(t,msg){const b=document.getElementById('sync-badge');b.textContent=(t==='ok'?'✓ ':'⚠ ')+msg;b.className='sync-badge sync-'+t;}
@@ -1249,6 +1394,275 @@ function rebuildSprintSel(){
   const fs=document.getElementById('f-sprint');if(fs){const fc=fs.value;fs.innerHTML='<option value="">Sin sprint</option>'+arr.map(s=>`<option value="${esc(s.id)}"${s.id===fc?' selected':''}>${esc(s.name)}</option>`).join('');}
 }
 
+// ══ NOTAS (estilo OneNote) ═════════════════════════════════════════════
+const NT_COLORS=['#0a6ea0','#fb8500','#00b894','#6c5ce7','#e74c3c','#f1c40f','#7a8a9e','#16a085'];
+
+// Sanitiza el HTML antes de guardarlo o mostrarlo: el editor acepta pegado
+// desde Word/web, que puede traer <script>, handlers on* o javascript:
+function ntClean(html){
+  const d=document.createElement('div');
+  d.innerHTML=String(html||'');
+  d.querySelectorAll('script,style,iframe,object,embed,link,meta,form').forEach(n=>n.remove());
+  d.querySelectorAll('*').forEach(n=>{
+    [...n.attributes].forEach(a=>{
+      const an=a.name.toLowerCase(),av=String(a.value||'').replace(/\s/g,'').toLowerCase();
+      if(an.startsWith('on'))n.removeAttribute(a.name);
+      else if((an==='href'||an==='src')&&(av.startsWith('javascript:')||av.startsWith('data:text/html')))n.removeAttribute(a.name);
+    });
+  });
+  return d.innerHTML;
+}
+function ntStrip(html){const d=document.createElement('div');d.innerHTML=String(html||'');return(d.textContent||'').replace(/\s+/g,' ').trim();}
+function ntRel(ts){
+  if(!ts)return '';
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60)return 'hace un momento';
+  if(s<3600)return 'hace '+Math.floor(s/60)+' min';
+  if(s<86400)return 'hace '+Math.floor(s/3600)+' h';
+  const d=Math.floor(s/86400);
+  if(d<30)return 'hace '+d+' d';
+  return new Date(ts).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
+}
+function ntSecs(){return Object.values(noteSections).sort((a,b)=>(a.order||0)-(b.order||0)||String(a.name).localeCompare(String(b.name)));}
+function ntPagesOf(sid){return Object.values(notePages).filter(p=>p.sectionId===sid).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));}
+
+function renderNotes(){
+  const secList=document.getElementById('nt-sec-list');
+  if(!secList)return;
+  const secs=ntSecs();
+
+  // ── Columna 1: secciones ──
+  secList.innerHTML=secs.length?secs.map(s=>{
+    const n=ntPagesOf(s.id).length;
+    return`<div class="nt-item${s.id===curSection?' active':''}" onclick="ntSelSection('${s.id}')">
+      <span class="nt-dot" style="background:${esc(s.color||NT_COLORS[0])}"></span>
+      <span class="nt-item-name">${esc(s.name)}</span>
+      <span class="nt-count">${n}</span>
+      <button class="nt-item-menu" title="Renombrar" onclick="event.stopPropagation();ntRenameSection('${s.id}')">✎</button>
+      <button class="nt-item-menu" title="Eliminar" onclick="event.stopPropagation();ntDelSection('${s.id}')">✕</button>
+    </div>`;}).join('')
+    :'<div class="nt-empty">Sin secciones.<br>Crea la primera con ＋</div>';
+
+  // ── Columna 2: páginas (o resultados de búsqueda) ──
+  const pgList=document.getElementById('nt-pg-list');
+  const pgTitle=document.getElementById('nt-pg-title');
+  const q=ntSearch.trim().toLowerCase();
+  if(q){
+    const hits=Object.values(notePages).filter(p=>
+      String(p.title||'').toLowerCase().includes(q)||ntStrip(p.html).toLowerCase().includes(q)
+    ).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    pgTitle.textContent='🔎 '+hits.length+' resultado'+(hits.length===1?'':'s');
+    pgList.innerHTML=hits.length?hits.map(p=>{
+      const sec=noteSections[p.sectionId];
+      const body=ntStrip(p.html),i=body.toLowerCase().indexOf(q);
+      const frag=i>=0?(i>28?'…':'')+body.slice(Math.max(0,i-28),i+70)+'…':body.slice(0,80);
+      return`<div class="nt-item${p.id===curPage?' active':''}" style="flex-direction:column;align-items:stretch;gap:2px" onclick="ntSelPage('${p.id}')">
+        <span class="nt-item-name" style="font-weight:600">${esc(p.title||'Sin título')}</span>
+        <span class="nt-item-sub" style="white-space:normal;line-height:1.45">${esc(frag)}</span>
+        <span class="nt-item-sub" style="color:${esc(sec?sec.color:'var(--gray)')};font-weight:700">${esc(sec?sec.name:'—')}</span>
+      </div>`;}).join('')
+      :'<div class="nt-empty">Sin coincidencias</div>';
+  }else{
+    const sec=noteSections[curSection];
+    pgTitle.textContent=sec?'📄 '+sec.name:'📄 Páginas';
+    if(!curSection){pgList.innerHTML='<div class="nt-empty">Selecciona una sección</div>';}
+    else{
+      const pgs=ntPagesOf(curSection);
+      pgList.innerHTML=pgs.length?pgs.map(p=>`
+        <div class="nt-item${p.id===curPage?' active':''}" style="flex-direction:column;align-items:stretch;gap:1px" onclick="ntSelPage('${p.id}')">
+          <span style="display:flex;align-items:center;gap:5px;width:100%">
+            <span class="nt-item-name">${esc(p.title||'Sin título')}</span>
+            <button class="nt-item-menu" title="Eliminar" onclick="event.stopPropagation();ntDelPage('${p.id}')">✕</button>
+          </span>
+          <span class="nt-item-sub">${esc(ntStrip(p.html).slice(0,52)||'Vacía')}</span>
+          <span class="nt-item-sub" style="font-size:9px">${esc(ntRel(p.updatedAt))}</span>
+        </div>`).join('')
+        :'<div class="nt-empty">Sección vacía.<br>Crea una página con ＋</div>';
+    }
+  }
+
+  // ── Columna 3: editor ──
+  const pane=document.getElementById('nt-editor-pane'),blank=document.getElementById('nt-blank');
+  const p=notePages[curPage];
+  if(!p){pane.style.display='none';blank.style.display='flex';curPage=null;return;}
+  pane.style.display='flex';blank.style.display='none';
+  const sec=noteSections[p.sectionId];
+  document.getElementById('nt-breadcrumb').innerHTML=sec?`<span style="color:${esc(sec.color)};font-weight:700">${esc(sec.name)}</span>`:'';
+  document.getElementById('nt-updated').textContent='Editado '+ntRel(p.updatedAt);
+  // Mientras se escribe no se pisa el contenido local con el snapshot remoto
+  if(ntDirty)return;
+  const ti=document.getElementById('nt-title'),bd=document.getElementById('nt-body');
+  if(document.activeElement!==ti)ti.value=p.title||'';
+  if(document.activeElement!==bd){
+    const inc=ntClean(p.html||'');
+    if(bd.innerHTML!==inc)bd.innerHTML=inc;
+  }
+}
+
+function ntSelSection(id){curSection=id;const pgs=ntPagesOf(id);curPage=pgs.length?pgs[0].id:null;ntDirty=false;renderNotes();}
+function ntSelPage(id){
+  const p=notePages[id];if(!p)return;
+  curPage=id;curSection=p.sectionId;ntDirty=false;ntSaveState('ok');renderNotes();
+  document.getElementById('nt-body').scrollTop=0;
+}
+async function ntAddSection(){
+  const name=prompt('Nombre de la sección:');
+  if(!name||!name.trim())return;
+  const id=genId(),n=ntSecs().length;
+  await fbSet('notes/sections/'+id,{id,name:name.trim().slice(0,50),color:NT_COLORS[n%NT_COLORS.length],order:n,createdAt:Date.now()});
+  curSection=id;curPage=null;
+}
+async function ntRenameSection(id){
+  const s=noteSections[id];if(!s)return;
+  const name=prompt('Nuevo nombre:',s.name);
+  if(!name||!name.trim())return;
+  await fbSet('notes/sections/'+id+'/name',name.trim().slice(0,50));
+}
+async function ntDelSection(id){
+  const s=noteSections[id];if(!s)return;
+  const n=ntPagesOf(id).length;
+  if(!confirm(`¿Eliminar la sección "${s.name}"?`+(n?`\n\nSe eliminarán también sus ${n} página(s). Esta acción no se puede deshacer.`:'')))return;
+  for(const p of ntPagesOf(id))await fbDel('notes/pages/'+p.id);
+  await fbDel('notes/sections/'+id);
+  if(curSection===id){curSection=null;curPage=null;}
+}
+async function ntAddPage(){
+  if(!curSection){alert('Primero selecciona o crea una sección.');return;}
+  const id=genId(),now=Date.now();
+  await fbSet('notes/pages/'+id,{id,sectionId:curSection,title:'',html:'',createdAt:now,updatedAt:now});
+  curPage=id;ntDirty=false;
+  renderNotes();
+  setTimeout(()=>document.getElementById('nt-title').focus(),60);
+}
+async function ntDelPage(id){
+  const p=notePages[id];if(!p)return;
+  if(!confirm(`¿Eliminar la página "${p.title||'Sin título'}"?`))return;
+  await fbDel('notes/pages/'+id);
+  if(curPage===id){curPage=null;ntDirty=false;}
+}
+function ntSaveState(k){
+  const el=document.getElementById('nt-save-state');if(!el)return;
+  el.className='nt-save '+(k==='dirty'?'dirty':'ok');
+  el.textContent=k==='dirty'?'Guardando…':'Guardado';
+}
+// Autoguardado con debounce: evita una escritura a Firebase por cada tecla
+function ntTouch(){
+  if(!curPage)return;
+  ntDirty=true;ntSaveState('dirty');
+  clearTimeout(ntTimer);
+  ntTimer=setTimeout(ntSave,900);
+}
+async function ntSave(){
+  if(!curPage)return;
+  const title=document.getElementById('nt-title').value.trim().slice(0,120);
+  const html=ntClean(document.getElementById('nt-body').innerHTML);
+  ntDirty=false;
+  await fbSet('notes/pages/'+curPage,{...notePages[curPage],id:curPage,sectionId:curSection,title,html,updatedAt:Date.now()});
+  ntSaveState('ok');
+}
+// ── Comandos del editor ──
+function ntExec(cmd,val){document.getElementById('nt-body').focus();document.execCommand(cmd,false,val||null);ntTouch();}
+function ntInsert(html){
+  const bd=document.getElementById('nt-body');bd.focus();
+  document.execCommand('insertHTML',false,html);
+  ntTouch();
+}
+function ntInitNotes(){
+  // Barra de herramientas
+  document.querySelectorAll('.nt-tb button[data-cmd]').forEach(b=>{
+    b.onmousedown=e=>e.preventDefault();
+    b.onclick=()=>ntExec(b.dataset.cmd);
+  });
+  document.querySelectorAll('.nt-tb button[data-block]').forEach(b=>{
+    b.onmousedown=e=>e.preventDefault();
+    b.onclick=()=>ntExec('formatBlock','<'+b.dataset.block+'>');
+  });
+  const btn=(id,fn)=>{const e=document.getElementById(id);if(e){e.onmousedown=ev=>ev.preventDefault();e.onclick=fn;}};
+  btn('nt-hl',()=>ntExec('hiliteColor','#ffe9a8'));
+  btn('nt-code',()=>{
+    const s=String(window.getSelection()).trim();
+    ntInsert(s?`<code>${esc(s)}</code>&nbsp;`:'<code>código</code>&nbsp;');
+  });
+  btn('nt-todo',()=>ntInsert('<ul class="nt-todo"><li><input type="checkbox"><span>Pendiente</span></li></ul>'));
+  btn('nt-date',()=>ntInsert(new Date().toLocaleDateString('es-MX',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})+'&nbsp;'));
+  btn('nt-link',()=>{
+    const u=prompt('URL del vínculo:','https://');
+    if(!u||u==='https://')return;
+    if(!/^https?:\/\//i.test(u)){alert('Solo se permiten vínculos http:// o https://');return;}
+    const s=String(window.getSelection()).trim();
+    if(s)ntExec('createLink',u);
+    else ntInsert(`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a>&nbsp;`);
+  });
+  btn('nt-table',()=>{
+    const c=parseInt(prompt('Número de columnas:','3'))||3;
+    const r=parseInt(prompt('Número de filas (sin encabezado):','3'))||3;
+    const cols=Math.min(Math.max(c,1),10),rows=Math.min(Math.max(r,1),30);
+    let h='<table><thead><tr>';
+    for(let i=0;i<cols;i++)h+='<th>Col '+(i+1)+'</th>';
+    h+='</tr></thead><tbody>';
+    for(let i=0;i<rows;i++){h+='<tr>';for(let j=0;j<cols;j++)h+='<td><br></td>';h+='</tr>';}
+    ntInsert(h+'</tbody></table><p><br></p>');
+  });
+  btn('nt-print',()=>{
+    const p=notePages[curPage];if(!p)return;
+    const sec=noteSections[p.sectionId];
+    const w=window.open('','_blank');
+    if(!w){alert('El navegador bloqueó la ventana emergente.');return;}
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(p.title||'Nota')}</title>
+      <style>body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:800px;margin:34px auto;padding:0 22px;color:#1a2733;line-height:1.65}
+      h1.t{font-size:24px;border-bottom:2px solid #0a6ea0;padding-bottom:7px}
+      .m{font-size:11px;color:#7a8a9e;margin-bottom:22px}
+      table{border-collapse:collapse;width:100%}th,td{border:1px solid #d6dde5;padding:6px 9px;font-size:13px;text-align:left}th{background:#f4f7fa}
+      blockquote{border-left:3px solid #0a6ea0;background:#f4f7fa;margin:8px 0;padding:7px 12px}
+      pre{background:#1a2733;color:#e8eef4;padding:11px;border-radius:7px;overflow-x:auto}
+      code{background:#f4f7fa;border:1px solid #d6dde5;border-radius:4px;padding:1px 5px}
+      img{max-width:100%}ul.nt-todo{list-style:none;padding-left:2px}</style></head><body>
+      <h1 class="t">${esc(p.title||'Sin título')}</h1>
+      <div class="m">${esc(sec?sec.name:'')} · Actualizado ${esc(new Date(p.updatedAt||Date.now()).toLocaleString('es-MX'))}</div>
+      ${ntClean(p.html||'')}</body></html>`);
+    w.document.close();
+    setTimeout(()=>w.print(),320);
+  });
+
+  // Altas
+  document.getElementById('nt-sec-add').onclick=ntAddSection;
+  document.getElementById('nt-pg-add').onclick=ntAddPage;
+
+  // Edición con autoguardado
+  const ti=document.getElementById('nt-title'),bd=document.getElementById('nt-body');
+  ti.oninput=ntTouch;
+  bd.oninput=ntTouch;
+  bd.onblur=()=>{if(ntDirty){clearTimeout(ntTimer);ntSave();}};
+  ti.onblur=()=>{if(ntDirty){clearTimeout(ntTimer);ntSave();}};
+  ti.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();bd.focus();}};
+  // Marcar/desmarcar casillas persiste el cambio
+  bd.onclick=e=>{if(e.target.type==='checkbox'){
+    if(e.target.checked)e.target.setAttribute('checked','checked');else e.target.removeAttribute('checked');
+    ntTouch();}};
+  // Pegar siempre como texto plano con formato básico limpio
+  bd.onpaste=e=>{
+    e.preventDefault();
+    const html=(e.clipboardData||window.clipboardData).getData('text/html');
+    const txt=(e.clipboardData||window.clipboardData).getData('text/plain');
+    document.execCommand('insertHTML',false,html?ntClean(html):esc(txt).replace(/\n/g,'<br>'));
+    ntTouch();
+  };
+  bd.onkeydown=e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();clearTimeout(ntTimer);ntSave();}
+    if(e.key==='Tab'){e.preventDefault();document.execCommand(e.shiftKey?'outdent':'indent');ntTouch();}
+  };
+
+  // Búsqueda global
+  let sTimer=null;
+  document.getElementById('nt-search').oninput=e=>{
+    clearTimeout(sTimer);
+    const v=e.target.value;
+    sTimer=setTimeout(()=>{ntSearch=v;renderNotes();},220);
+  };
+}
+// Evita perder cambios al cerrar la pestaña con edición pendiente
+window.addEventListener('beforeunload',e=>{if(ntDirty){ntSave();e.preventDefault();e.returnValue='';}});
+
 // ── PAGES ──
 function showPage(p){
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
@@ -1263,6 +1677,8 @@ document.getElementById('nav-daily').onclick=()=>showPage('daily');
 document.getElementById('nav-okr').onclick=()=>showPage('okr');
 document.getElementById('nav-sprintlog').onclick=()=>{showPage('sprintlog');renderSprintLog();};
 document.getElementById('nav-calendar').onclick=()=>{showPage('calendar');renderCalendar();};
+document.getElementById('nav-notes').onclick=()=>{showPage('notes');renderNotes();};
+ntInitNotes();
 document.getElementById('cal-today-btn').onclick=()=>{
   // Buscar la fila de la semana actual por el outline navy
   const rows=document.querySelectorAll('#cal-content [style*="navy-mid"]');
