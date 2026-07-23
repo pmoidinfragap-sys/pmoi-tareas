@@ -146,14 +146,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 /* NAV */
 .nav{background:#fff;border-bottom:1px solid var(--gray-light);display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;}
 /* ══ NOTAS (estilo OneNote) ══════════════════════════════════════════ */
-.nt-wrap{display:grid;grid-template-columns:210px 230px 1fr;gap:0;background:#fff;border:1px solid var(--gray-light);border-radius:12px;overflow:hidden;height:calc(100vh - 190px);min-height:460px;}
-.nt-col{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--gray-light);}
+.nt-wrap{display:grid;grid-template-columns:210px 230px 1fr;gap:0;background:#fff;border:1px solid var(--gray-light);border-radius:12px;overflow:hidden;height:calc(100vh - 190px);min-height:420px;}
+.nt-col{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--gray-light);}
 .nt-col:last-child{border-right:none;}
 .nt-col-hd{display:flex;align-items:center;gap:6px;padding:9px 11px;border-bottom:1px solid var(--gray-light);background:var(--gray-pale);flex-shrink:0;}
 .nt-col-title{font-size:10px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;flex:1;white-space:nowrap;overflow:hidden;}
 .nt-add{background:none;border:none;color:var(--navy-light);font-size:15px;font-weight:700;cursor:pointer;padding:0 3px;line-height:1;flex-shrink:0;}
 .nt-add:hover{color:var(--orange);}
-.nt-list{flex:1;overflow-y:auto;padding:5px;}
+.nt-list{flex:1 1 0;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:5px;}
 .nt-item{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:7px;cursor:pointer;margin-bottom:2px;transition:background .12s;position:relative;}
 .nt-item:hover{background:var(--gray-pale);}
 .nt-item.active{background:rgba(10,110,160,.11);}
@@ -176,7 +176,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 .nt-tb button{background:none;border:none;border-radius:5px;cursor:pointer;font-size:12px;color:var(--navy);padding:4px 7px;min-width:26px;line-height:1.3;font-family:inherit;transition:background .12s;}
 .nt-tb button:hover{background:rgba(10,110,160,.13);}
 .nt-tb-sep{width:1px;height:16px;background:var(--gray-light);margin:0 4px;flex-shrink:0;}
-.nt-body{flex:1;overflow-y:auto;padding:14px 18px 60px;font-size:13.5px;line-height:1.65;color:var(--text);outline:none;}
+.nt-body{flex:1 1 0;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px 18px 60px;font-size:13.5px;line-height:1.65;color:var(--text);outline:none;}
 .nt-body:empty:before{content:attr(data-ph);color:var(--gray-light);pointer-events:none;}
 .nt-body h1{font-size:19px;font-weight:800;color:var(--navy);margin:14px 0 6px;}
 .nt-body h2{font-size:15.5px;font-weight:700;color:var(--navy);margin:12px 0 5px;}
@@ -204,10 +204,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
 .nt-blank{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--gray);text-align:center;padding:30px;}
 .nt-hit{background:rgba(241,196,15,.45);border-radius:2px;}
 @media(max-width:900px){
-  .nt-wrap{grid-template-columns:1fr;height:auto;min-height:0;}
+  .nt-wrap{grid-template-columns:1fr;height:auto!important;min-height:0;overflow:visible;}
   .nt-col{border-right:none;border-bottom:1px solid var(--gray-light);}
-  .nt-col:nth-child(1) .nt-list,.nt-col:nth-child(2) .nt-list{max-height:160px;}
-  .nt-body{min-height:300px;}
+  .nt-col:nth-child(1) .nt-list,.nt-col:nth-child(2) .nt-list{max-height:190px;}
+  /* El editor crece con el contenido: hace scroll la página, no una caja interna */
+  .nt-body{min-height:340px;overflow-y:visible;}
 }
 .nav-btn{flex-shrink:0;padding:10px 20px;border:none;background:transparent;font-size:13px;font-weight:600;color:var(--gray);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;}
 .nav-btn.active{color:var(--navy);border-bottom-color:var(--orange);}
@@ -1426,9 +1427,22 @@ function ntRel(ts){
 function ntSecs(){return Object.values(noteSections).sort((a,b)=>(a.order||0)-(b.order||0)||String(a.name).localeCompare(String(b.name)));}
 function ntPagesOf(sid){return Object.values(notePages).filter(p=>p.sectionId===sid).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));}
 
+// Ajusta la altura del contenedor al espacio realmente disponible.
+// Evita el número mágico en el CSS: si el encabezado o la barra de navegación
+// cambian de alto, el scroll interno se sigue calculando bien.
+function ntFit(){
+  const w=document.querySelector('.nt-wrap');
+  if(!w||!document.getElementById('page-notes')?.classList.contains('active'))return;
+  if(window.innerWidth<=900){w.style.height='';return;}
+  const top=w.getBoundingClientRect().top;
+  w.style.height=Math.max(420,Math.round(window.innerHeight-top-18))+'px';
+}
+window.addEventListener('resize',ntFit);
+
 function renderNotes(){
   const secList=document.getElementById('nt-sec-list');
   if(!secList)return;
+  ntFit();
   const secs=ntSecs();
 
   // ── Columna 1: secciones ──
@@ -1677,7 +1691,7 @@ document.getElementById('nav-daily').onclick=()=>showPage('daily');
 document.getElementById('nav-okr').onclick=()=>showPage('okr');
 document.getElementById('nav-sprintlog').onclick=()=>{showPage('sprintlog');renderSprintLog();};
 document.getElementById('nav-calendar').onclick=()=>{showPage('calendar');renderCalendar();};
-document.getElementById('nav-notes').onclick=()=>{showPage('notes');renderNotes();};
+document.getElementById('nav-notes').onclick=()=>{showPage('notes');renderNotes();setTimeout(ntFit,0);};
 ntInitNotes();
 document.getElementById('cal-today-btn').onclick=()=>{
   // Buscar la fila de la semana actual por el outline navy
