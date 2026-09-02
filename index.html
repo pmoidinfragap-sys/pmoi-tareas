@@ -975,7 +975,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
     <div class="modal-body">
       <div class="config-section">
         <div class="config-section-title">👤 Responsables del equipo</div>
-        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;line-height:1.5">La <b>sigla del puesto</b> se calcula sola a partir del puesto (ej. "Jefatura de Planeación y Control" → <b>JPC</b>) y aparece junto al nombre en tareas, listas y dailies. Para editar a alguien ya registrado, usa ✎ o vuelve a escribir su nombre exacto.</div>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;line-height:1.5">La <b>sigla del puesto</b> se calcula sola a partir del puesto (ej. "Jefatura de Planeación y Control" → <b>JPC</b>) y aparece junto al nombre en tareas, listas y dailies. Para editar a alguien ya registrado, usa ✎ o vuelve a escribir su nombre exacto.<br><b>⏻ Dar de baja</b>: la persona sale de los % y resúmenes de sprint (actuales e históricos) y ya no se puede asignar, pero sus tareas y su historial se conservan. Es reversible con ↩. Usa ✕ solo para borrarla por completo.</div>
         <div class="config-list" id="cfg-assignee-list"></div>
         <div class="config-add-row" style="flex-wrap:wrap;gap:6px">
           <input class="form-input" id="cfg-assignee-input" placeholder="Nombre completo..." maxlength="60" list="cfg-assignee-datalist" autocomplete="off" style="flex:1 1 100%">
@@ -1220,7 +1220,7 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[],roles:{}}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
+let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[],roles:{},inactive:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
 // Ausencias (vacaciones/permisos/incapacidades/comisiones) y cumpleaños
 let vacations={}, birthdays={}, trips={}, calPerson='';
 // Notas (estilo OneNote): secciones → páginas
@@ -1249,7 +1249,7 @@ async function initFB(){
     db=firebase.database();
     badge('ok','Conectado');
     db.ref('tasks').on('value',s=>{tasks=s.val()||{};rebuildFilters();refresh();badge('ok','Sync');});
-    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[],areas:d.areas||[],roles:d.roles||{}};rebuildConfigSelects();refresh();});
+    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[],areas:d.areas||[],roles:d.roles||{},inactive:d.inactive||[]};rebuildConfigSelects();refresh();});
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();renderSprintModal();refresh();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();badge('ok','Sync');});
     db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();badge('ok','Sync');});
     db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();renderDashDaily();badge('ok','Sync');});
@@ -1292,6 +1292,14 @@ function roleAbbr(role){
   if(words.length===1)return words[0].slice(0,3).toUpperCase();
   return words.map(w=>w[0].toUpperCase()).slice(0,4).join('');
 }
+// ── BAJAS DEL EQUIPO ───────────────────────────────────────────────────
+// Una persona dada de baja NO desaparece de los datos (sus tareas siguen ahí),
+// pero queda fuera de todo cálculo y resumen de % de sprint, y ya no se puede
+// asignar a tareas nuevas. Es reversible: al reactivarla, todo vuelve.
+function isInactive(n){return !!(n&&Array.isArray(config.inactive)&&config.inactive.includes(n));}
+function activeAssignees(){return config.assignees.filter(n=>!isInactive(n));}
+function inactiveChip(n){return isInactive(n)?'<span style="margin-left:4px;padding:0 5px;background:rgba(122,138,158,.18);color:var(--gray);border-radius:8px;font-size:9px;font-weight:700">baja</span>':'';}
+
 function roleOf(name){if(!name)return null;return(config.roles&&config.roles[slugKey(name)])||null;}
 function roleTxt(name){const r=roleOf(name);return r&&r.role?r.role:'';}
 function roleSig(name){const r=roleOf(name);if(!r||!r.role)return '';return r.abbr||roleAbbr(r.role);}
@@ -1346,11 +1354,15 @@ function rebuildFilters(){
 }
 function rebuildConfigSelects(){
   const fA=document.getElementById('f-assignee');
-  if(fA){const cv=fA.value;fA.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${nameOpt(n)}</option>`).join('');}
+  // Los selects de captura solo ofrecen personas activas; si la tarea que se edita
+  // ya apunta a alguien de baja, se conserva la opción para no perder el dato.
+  const actAs=activeAssignees();
+  const optList=cur=>(cur&&!actAs.includes(cur)?[...actAs,cur]:actAs);
+  if(fA){const cv=fA.value;fA.innerHTML='<option value="">— Sin asignar —</option>'+optList(cv).map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${nameOpt(n)}${isInactive(n)?' (baja)':''}</option>`).join('');}
   const fR=document.getElementById('f-reviewer');
-  if(fR){const cv=fR.value;fR.innerHTML='<option value="">— Sin revisor —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${nameOpt(n)}</option>`).join('');}
+  if(fR){const cv=fR.value;fR.innerHTML='<option value="">— Sin revisor —</option>'+optList(cv).map(n=>`<option value="${esc(n)}"${n===cv?' selected':''}>${nameOpt(n)}${isInactive(n)?' (baja)':''}</option>`).join('');}
   const dl=document.getElementById('f-collab-datalist');
-  if(dl)dl.innerHTML=config.assignees.map(n=>`<option value="${esc(n)}">`).join('');
+  if(dl)dl.innerHTML=actAs.map(n=>`<option value="${esc(n)}">`).join('');
   const fT=document.getElementById('f-tag');
   if(fT){const cv=fT.value;fT.innerHTML='<option value="">— Sin etiqueta —</option>'+config.tags.map(t=>`<option value="${esc(t)}"${t===cv?' selected':''}>${esc(t)}</option>`).join('');}
   // OKR eje estratégico selects
@@ -1365,15 +1377,16 @@ function renderConfigLists(){
   const al=document.getElementById('cfg-assignee-list');
   if(al){al.innerHTML=config.assignees.length
     ?config.assignees.map((n,i)=>{
-      const sig=roleSig(n),txt=roleTxt(n);
-      return`<div class="config-item">
+      const sig=roleSig(n),txt=roleTxt(n),baja=isInactive(n);
+      return`<div class="config-item"${baja?' style="opacity:.55"':''}>
         <span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(n))}</span>
         <span class="config-item-text">
-          <span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">${esc(n)}${sig?`<span class="role-chip">${esc(sig)}</span>`:'<span style="font-size:9px;color:var(--orange);font-weight:700">sin puesto</span>'}</span>
+          <span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">${esc(n)}${sig?`<span class="role-chip">${esc(sig)}</span>`:'<span style="font-size:9px;color:var(--orange);font-weight:700">sin puesto</span>'}${baja?'<span style="padding:0 5px;background:rgba(122,138,158,.18);color:var(--gray);border-radius:8px;font-size:9px;font-weight:700">baja</span>':''}</span>
           ${txt?`<div style="font-size:10px;color:var(--gray);margin-top:1px">${esc(txt)}</div>`:''}
         </span>
+        <button class="config-item-del" style="color:${baja?'var(--green)':'var(--gray)'}" title="${baja?'Reactivar en el equipo':'Dar de baja (sale de los % de sprint, conserva su historial)'}" onclick="toggleAssigneeActive(${i})">${baja?'↩':'⏻'}</button>
         <button class="config-item-del" style="color:var(--navy-light)" title="Editar puesto" onclick="editAssignee(${i})">✎</button>
-        <button class="config-item-del" onclick="delAssignee(${i})">✕</button>
+        <button class="config-item-del" title="Eliminar por completo" onclick="delAssignee(${i})">✕</button>
       </div>`;}).join('')
     :'<div class="config-empty">Sin responsables definidos aún</div>';}
   const dlN=document.getElementById('cfg-assignee-datalist');
@@ -1761,7 +1774,7 @@ function daysToBday(md){
 }
 
 function fillPeopleSelects(){
-  const opts=config.assignees.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  const opts=activeAssignees().map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
   const ap=document.getElementById('aus-f-person');
   if(ap){const cv=ap.value;ap.innerHTML='<option value="">— Seleccionar —</option>'+opts;ap.value=cv;}
   const bp=document.getElementById('bd-f-person');
@@ -2230,7 +2243,10 @@ function refresh(){renderDash();renderBoard();renderDailyPage();renderOkrPage();
 function sprintBanner(targetId){
   const sp=activeSp();
   const all=Object.values(tasks);
-  const spT=sp?all.filter(t=>t.sprint===sp.id):[];
+  const spTraw=sp?all.filter(t=>t.sprint===sp.id):[];
+  // Tareas de personas dadas de baja: quedan fuera del cálculo y se avisan aparte
+  const orphanN=spTraw.filter(t=>isInactive(t.assignee)).length;
+  const spT=spTraw.filter(t=>!isInactive(t.assignee));
   const computable=spT.filter(countsForPct);   // excluye bloqueadas abiertas
   const blockedN=spT.length-computable.length;
   const done=computable.filter(isSprintDone).length;
@@ -2240,7 +2256,7 @@ function sprintBanner(targetId){
   if(sp){
     el.innerHTML=`<div class="sprint-banner">
       <div class="sprint-info"><div class="sprint-label">Sprint activo</div><div class="sprint-name">${esc(sp.name)}</div><div class="sprint-dates">${fmtD(sp.start)} → ${fmtD(sp.end)}</div></div>
-      <div class="sprint-progress-wrap"><div class="sprint-progress-label"><span>${done}/${total} completadas${blockedN?` &middot; <span style="color:var(--red);font-weight:700">\u{1F6AB} ${blockedN} bloqueada${blockedN!==1?'s':''} (no computan)</span>`:''}</span><span>${total?pct+'%':'—'}</span></div><div class="sprint-progress-bar"><div class="sprint-progress-fill" style="width:${pct}%"></div></div></div>
+      <div class="sprint-progress-wrap"><div class="sprint-progress-label"><span>${done}/${total} completadas${blockedN?` &middot; <span style="color:var(--red);font-weight:700">\u{1F6AB} ${blockedN} bloqueada${blockedN!==1?'s':''} (no computan)</span>`:''}${orphanN?` &middot; <span style="color:var(--orange);font-weight:700" title="Asignadas a personas dadas de baja — reasígnalas">\u26a0 ${orphanN} sin responsable activo</span>`:''}</span><span>${total?pct+'%':'—'}</span></div><div class="sprint-progress-bar"><div class="sprint-progress-fill" style="width:${pct}%"></div></div></div>
       <div class="sprint-actions">
         <button class="btn-sprint btn-sprint-close" onclick="closeSprint('${sp.id}')">Cerrar sprint</button>
         <button class="btn-sprint btn-sprint-new" onclick="openSprintModal()">+ Sprint</button>
@@ -2282,7 +2298,7 @@ function renderDash(){
     ?`<div style="display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:0 8px;row-gap:8px">${allAssignees.map(n=>{
         const activo=byA[n]||0;const hist=byAHist[n]||0;const done=hist-activo;
         const pctAct=Math.round(activo/maxW*100);const pctHist=Math.round(hist/maxW*100);
-        return`<div class="workload-name" title="${esc(n)}" style="width:96px">${esc(n)}</div>`+
+        return`<div class="workload-name" title="${esc(n)}${isInactive(n)?' — dado de baja, reasignar sus tareas':''}" style="width:96px${isInactive(n)?';opacity:.6':''}">${esc(n)}${inactiveChip(n)}</div>`+
           `<div class="workload-bar-wrap" style="position:relative">`+
             `<div style="position:absolute;top:0;left:0;width:${pctHist}%;height:100%;background:var(--gray-mid);border-radius:4px;transition:width .5s"></div>`+
             `<div class="workload-bar-fill" style="position:relative;width:${pctAct}%;background:var(--navy-mid);z-index:1"></div>`+
@@ -2387,17 +2403,12 @@ function renderDash(){
       const snap=sprintHistory[s.id];
       let sDone,sTotal,pct;
       if(snap&&snap.totalTasks!=null){
-        // Reclasificar review en pendingTasksList (misma lógica que adjustHist)
-        const reviewInPending=(snap.pendingTasksList||[]).filter(t=>t.status==='review'||t.status==='done').length;
-        sDone=(snap.doneTasks||0)+reviewInPending;
-        // Bloqueadas abiertas: fuera del denominador. Snapshots nuevos ya traen
-        // totalTasks neto (marcados con blockedExcluded); en los viejos se resta.
-        const blkPend=(snap.pendingTasksList||[]).filter(t=>t.blocked&&!(t.status==='review'||t.status==='done')).length;
-        sTotal=(snap.blockedExcluded!=null)?(snap.totalTasks||0):Math.max(0,(snap.totalTasks||0)-blkPend);
-        pct=sTotal?Math.round(sDone/sTotal*100):0;
+        // Misma función que la Bitácora, para que los números nunca difieran
+        const a=histStats(snap);
+        sDone=a.done;sTotal=a.total;pct=a.pct;
       }else{
         // Fallback para sprints sin snapshot: incluir movedFromSprint
-        const sT=all.filter(t=>(t.sprint===s.id||t.movedFromSprint===s.id)&&countsForPct(t));
+        const sT=all.filter(t=>(t.sprint===s.id||t.movedFromSprint===s.id)&&countsForPct(t)&&!isInactive(t.assignee));
         sDone=sT.filter(isSprintDone).length;
         sTotal=sT.length;
         pct=sTotal?Math.round(sDone/sTotal*100):0;
@@ -2780,7 +2791,7 @@ let dailyTasks={}, editDailyId=null;
 function rebuildDailyAssigneeSel(){
   const sel=document.getElementById('daily-filter-assignee');if(!sel)return;
   const cur=sel.value;
-  const names=[...new Set([...config.assignees,...Object.values(dailyTasks).map(t=>t.assignee).filter(Boolean)])].sort();
+  const names=[...new Set([...activeAssignees(),...Object.values(dailyTasks).map(t=>t.assignee).filter(Boolean)])].filter(n=>!isInactive(n)).sort();
   sel.innerHTML='<option value="">Todos los responsables</option>'+names.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('');
 }
 
@@ -2956,7 +2967,7 @@ function openDailyDetail(id){
 
 function rebuildDailyFormSels(){
   const fA=document.getElementById('df-assignee');
-  if(fA){fA.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');}
+  if(fA){fA.innerHTML='<option value="">— Sin asignar —</option>'+activeAssignees().map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');}
   const fT=document.getElementById('df-tag');
   if(fT){fT.innerHTML='<option value="">— Sin etiqueta —</option>'+config.tags.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');}
 }
@@ -3583,6 +3594,96 @@ async function recalcSprintHistory(id){
   }
 }
 
+// ── Estadística de un sprint cerrado (fuente única para Dashboard y Bitácora) ──
+// Reclasifica al vuelo (review = completada), excluye del % las tareas
+// BLOQUEADAS abiertas y las de personas dadas de BAJA.
+function histStats(h){
+  const byP=JSON.parse(JSON.stringify(h.byPerson||{}));
+  const pendingList=[];
+  const blockedList=[];   // bloqueadas: se muestran, no computan
+  // Personas dadas de baja: se descuentan del numerador y del denominador
+  let excInactive=0;        // tareas suyas que SÍ computaban
+  let excInactiveBlk=0;     // tareas suyas bloqueadas (solo afectan snapshots viejos)
+
+  // 1) Migrar formato viejo: " · En revisión" embebido en titles → campo review separado
+  Object.keys(byP).forEach(p=>{
+    const d=byP[p];
+    if(!('review' in d)){d.review=0;d.reviewTitles=[];}
+    if(d.titles&&d.titles.some(t=>t.endsWith(' · En revisión'))){
+      const cleaned=[],rev=[];
+      d.titles.forEach(t=>{
+        if(t.endsWith(' · En revisión')){rev.push(t.replace(' · En revisión',''));d.review++;d.done=Math.max(0,(d.done||1)-1);}
+        else cleaned.push(t);
+      });
+      d.titles=cleaned;d.reviewTitles=[...rev,...(d.reviewTitles||[])];
+    }
+    // Fix contadores corruptos: si hay títulos, los contadores deben concordar
+    if(d.titles)d.done=Math.max(d.done||0, d.titles.length);
+    if(d.reviewTitles)d.review=Math.max(d.review||0, d.reviewTitles.length);
+  });
+
+  // 2) Reclasificar tareas del pendingTasksList que son review → completadas
+  (h.pendingTasksList||[]).forEach(t=>{
+    if(isInactive(t.assignee)){
+      // Persona de baja: no se muestra ni computa; solo ajusta el denominador
+      if(t.status==='review'||t.status==='done'||!t.blocked)excInactive++;
+      else excInactiveBlk++;
+      return;
+    }
+    if(t.status==='review'||t.status==='done'){
+      // Tarea que quedó como done/review en pendingTasksList (snapshot viejo o carry-over completado)
+      const p=t.assignee||'Sin asignar';
+      if(!byP[p])byP[p]={done:0,review:0,titles:[],reviewTitles:[]};
+      if(t.status==='review'){
+        byP[p].review=(byP[p].review||0)+1;
+        byP[p].reviewTitles=byP[p].reviewTitles||[];
+        // Evitar duplicados
+        if(!byP[p].reviewTitles.includes(t.title||''))byP[p].reviewTitles.push(t.title||'');
+      }else{
+        byP[p].done=(byP[p].done||0)+1;
+        byP[p].titles=byP[p].titles||[];
+        if(!byP[p].titles.includes(t.title||''))byP[p].titles.push(t.title||'');
+      }
+    }else if(t.blocked){
+      // Bloqueada y sin completar: se muestra en el sprint pero NO computa
+      blockedList.push(t);
+    }else{
+      pendingList.push(t);
+    }
+  });
+
+  // 3) Recalcular totales desde títulos reales (fuente de verdad más confiable que contadores)
+  Object.keys(byP).forEach(p=>{
+    const d=byP[p];
+    // Si hay títulos, usarlos como fuente de verdad para los contadores
+    if(d.titles&&d.titles.length>0)d.done=d.titles.length;
+    if(d.reviewTitles&&d.reviewTitles.length>0)d.review=d.reviewTitles.length;
+  });
+
+  // Quitar del resumen a las personas dadas de baja (y del denominador)
+  Object.keys(byP).forEach(p=>{
+    if(!isInactive(p))return;
+    const d=byP[p];
+    excInactive+=(d.done||0)+(d.review||0);
+    delete byP[p];
+  });
+
+  const done=Object.values(byP).reduce((a,d)=>a+(d.done||0)+(d.review||0),0);
+  // El denominador nunca incluye bloqueadas abiertas. Snapshots nuevos ya traen
+  // totalTasks neto (blockedExcluded presente); en los viejos hay que restarlas.
+  let total;
+  if(h.totalTasks!=null){
+    let base=h.totalTasks;
+    // Snapshots viejos aún traen las bloqueadas dentro de totalTasks
+    if(h.blockedExcluded==null)base-=blockedList.length+excInactiveBlk;
+    total=Math.max(0,base-excInactive);
+  }else{
+    total=done+pendingList.length;
+  }
+  const pct=total?Math.round(done/total*100):0;
+  return{done,total,pending:pendingList.length,pct,byP,pendingList,blockedList,blocked:blockedList.length,excluded:excInactive};
+}
+
 function renderSprintLog(){
   const container=document.getElementById('sprintlog-content');
   const personSel=document.getElementById('sl-filter-person');
@@ -3593,8 +3694,8 @@ function renderSprintLog(){
   // Rebuild person filter
   const allPersons=new Set();
   history.forEach(h=>{
-    Object.keys(h.byPerson||{}).forEach(p=>allPersons.add(p));
-    (h.pendingTasksList||[]).forEach(t=>allPersons.add(t.assignee||'Sin asignar'));
+    Object.keys(h.byPerson||{}).forEach(p=>{if(!isInactive(p))allPersons.add(p);});
+    (h.pendingTasksList||[]).forEach(t=>{const p=t.assignee||'Sin asignar';if(!isInactive(p))allPersons.add(p);});
   });
   const selPerson=personSel?personSel.value:'';
   if(personSel){
@@ -3612,75 +3713,8 @@ function renderSprintLog(){
     return;
   }
 
-  // ── Reclasificación al vuelo (review siempre = completada) ──
-  function adjustHist(h){
-    const byP=JSON.parse(JSON.stringify(h.byPerson||{}));
-    const pendingList=[];
-    const blockedList=[];   // bloqueadas: se muestran, no computan
-
-    // 1) Migrar formato viejo: " · En revisión" embebido en titles → campo review separado
-    Object.keys(byP).forEach(p=>{
-      const d=byP[p];
-      if(!('review' in d)){d.review=0;d.reviewTitles=[];}
-      if(d.titles&&d.titles.some(t=>t.endsWith(' · En revisión'))){
-        const cleaned=[],rev=[];
-        d.titles.forEach(t=>{
-          if(t.endsWith(' · En revisión')){rev.push(t.replace(' · En revisión',''));d.review++;d.done=Math.max(0,(d.done||1)-1);}
-          else cleaned.push(t);
-        });
-        d.titles=cleaned;d.reviewTitles=[...rev,...(d.reviewTitles||[])];
-      }
-      // Fix contadores corruptos: si hay títulos, los contadores deben concordar
-      if(d.titles)d.done=Math.max(d.done||0, d.titles.length);
-      if(d.reviewTitles)d.review=Math.max(d.review||0, d.reviewTitles.length);
-    });
-
-    // 2) Reclasificar tareas del pendingTasksList que son review → completadas
-    (h.pendingTasksList||[]).forEach(t=>{
-      if(t.status==='review'||t.status==='done'){
-        // Tarea que quedó como done/review en pendingTasksList (snapshot viejo o carry-over completado)
-        const p=t.assignee||'Sin asignar';
-        if(!byP[p])byP[p]={done:0,review:0,titles:[],reviewTitles:[]};
-        if(t.status==='review'){
-          byP[p].review=(byP[p].review||0)+1;
-          byP[p].reviewTitles=byP[p].reviewTitles||[];
-          // Evitar duplicados
-          if(!byP[p].reviewTitles.includes(t.title||''))byP[p].reviewTitles.push(t.title||'');
-        }else{
-          byP[p].done=(byP[p].done||0)+1;
-          byP[p].titles=byP[p].titles||[];
-          if(!byP[p].titles.includes(t.title||''))byP[p].titles.push(t.title||'');
-        }
-      }else if(t.blocked){
-        // Bloqueada y sin completar: se muestra en el sprint pero NO computa
-        blockedList.push(t);
-      }else{
-        pendingList.push(t);
-      }
-    });
-
-    // 3) Recalcular totales desde títulos reales (fuente de verdad más confiable que contadores)
-    Object.keys(byP).forEach(p=>{
-      const d=byP[p];
-      // Si hay títulos, usarlos como fuente de verdad para los contadores
-      if(d.titles&&d.titles.length>0)d.done=d.titles.length;
-      if(d.reviewTitles&&d.reviewTitles.length>0)d.review=d.reviewTitles.length;
-    });
-
-    const done=Object.values(byP).reduce((a,d)=>a+(d.done||0)+(d.review||0),0);
-    // El denominador nunca incluye bloqueadas abiertas. Snapshots nuevos ya traen
-    // totalTasks neto (blockedExcluded presente); en los viejos hay que restarlas.
-    let total;
-    if(h.totalTasks!=null)
-      total=(h.blockedExcluded!=null)?h.totalTasks:Math.max(0,h.totalTasks-blockedList.length);
-    else
-      total=done+pendingList.length;
-    const pct=total?Math.round(done/total*100):0;
-    return{done,total,pending:pendingList.length,pct,byP,pendingList,blockedList,blocked:blockedList.length};
-  }
-
   const adjMap={};
-  history.forEach(h=>{adjMap[h.sprintId||h.sprintName]=adjustHist(h);});
+  history.forEach(h=>{adjMap[h.sprintId||h.sprintName]=histStats(h);});
   const adjOf=h=>adjMap[h.sprintId||h.sprintName];
 
   // ── Tendencia por persona (sparkline) ──
@@ -3758,7 +3792,7 @@ function renderSprintLog(){
       globalByPerson[p].blocked=(globalByPerson[p].blocked||0)+1;
     });
   });
-  const allGlobalTeam=new Set([...config.assignees,...Object.keys(globalByPerson)]);
+  const allGlobalTeam=new Set([...activeAssignees(),...Object.keys(globalByPerson)].filter(p=>!isInactive(p)));
 
   const personRows=[...allGlobalTeam].sort().map(p=>{
     const d=globalByPerson[p]||{done:0,review:0,pending:0,blocked:0};
@@ -3841,7 +3875,7 @@ function renderSprintLog(){
       blockedListByPerson[p].push((t.title||'')+stLb+(t.blockedReason?' — '+t.blockedReason:''));
     });
 
-    const allTeam=new Set([...config.assignees,...Object.keys(byP),...Object.keys(pendingByPerson),...Object.keys(blockedListByPerson)]);
+    const allTeam=new Set([...activeAssignees(),...Object.keys(byP),...Object.keys(pendingByPerson),...Object.keys(blockedListByPerson)].filter(p=>!isInactive(p)));
     const teamList=selPerson?[selPerson]:[...allTeam].sort();
 
     const personRows=teamList.map(p=>{
@@ -3915,6 +3949,8 @@ function renderSprintLog(){
 
     const pendingBadge=adj.pending
       ?`<span style="padding:2px 8px;background:rgba(251,133,0,.15);color:var(--orange);border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">${adj.pending} sin completar</span>`:'';
+    const inactiveBadge=adj.excluded
+      ?`<span title="Tareas de personas dadas de baja — fuera del cálculo" style="padding:2px 8px;background:rgba(122,138,158,.15);color:var(--gray);border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">\u{1F464} ${adj.excluded} de baja</span>`:'';
     const blockedExclBadge=adj.blocked
       ?`<span title="Bloqueadas: se listan pero no cuentan para el %" style="padding:2px 8px;background:rgba(231,76,60,.12);color:var(--red);border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">\u{1F6AB} ${adj.blocked} no computa${adj.blocked!==1?'n':''}</span>`:'';
 
@@ -3927,6 +3963,7 @@ function renderSprintLog(){
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${pendingBadge}
+          ${inactiveBadge}
           ${blockedExclBadge}
           ${blockedDaysTag}
           <span style="padding:2px 10px;background:rgba(16,185,129,.15);color:var(--green);border-radius:12px;font-size:11px;font-weight:700">${adj.done}/${adj.total} ✓</span>
@@ -4072,9 +4109,29 @@ function editAssignee(i){
 }
 async function delAssignee(i){
   const n=config.assignees[i];
-  if(!confirm('¿Eliminar este responsable?'))return;
+  if(!confirm('¿Eliminar este responsable?\n\nSi solo dejó el equipo, es mejor darlo de BAJA (⏻): sale de los % de sprint pero conserva su historial.'))return;
   await fbSet('config/assignees',config.assignees.filter((_,idx)=>idx!==i));
+  if(n)await fbSet('config/inactive',(config.inactive||[]).filter(x=>x!==n));
   if(n&&roleOf(n))await fbDel('config/roles/'+slugKey(n));
+}
+// Alta/baja del equipo (reversible). La baja excluye a la persona de TODO
+// cálculo de % de sprint, sin borrar sus tareas ni su historial.
+async function toggleAssigneeActive(i){
+  const n=config.assignees[i];if(n===undefined)return;
+  const list=Array.isArray(config.inactive)?config.inactive:[];
+  if(isInactive(n)){
+    await fbSet('config/inactive',list.filter(x=>x!==n));
+    badge('ok',n+' reactivado');
+    return;
+  }
+  // Avisar de tareas abiertas que quedarán huérfanas
+  const abiertas=Object.values(tasks).filter(t=>t.assignee===n&&!isSprintDone(t)).length;
+  const msg='Dar de baja a '+n+'\n\n• Deja de contar en el % de todos los sprints (actuales e históricos)\n• Desaparece de los resúmenes por persona\n• Ya no se podrá asignar a tareas nuevas\n• Sus tareas y su historial NO se borran\n'+
+    (abiertas?('\n⚠ Tiene '+abiertas+' tarea(s) sin completar. Reasígnalas o quedarán fuera de todo cálculo.\n'):'')+
+    '\nEs reversible. ¿Continuar?';
+  if(!confirm(msg))return;
+  await fbSet('config/inactive',[...list,n].sort());
+  badge('ok',n+' dado de baja');
 }
 async function addTag(){
   const inp=document.getElementById('cfg-tag-input');
@@ -4649,7 +4706,7 @@ document.getElementById('okr-f-start').oninput=function(){this.dataset.userEdite
 
 function rebuildOkrOwnerSel(cur){
   const el=document.getElementById('okr-f-owner');if(!el)return;
-  el.innerHTML='<option value="">— Sin asignar —</option>'+config.assignees.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${nameOpt(n)}</option>`).join('');
+  el.innerHTML='<option value="">— Sin asignar —</option>'+(cur&&isInactive(cur)?[...activeAssignees(),cur]:activeAssignees()).map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${nameOpt(n)}${isInactive(n)?' (baja)':''}</option>`).join('');
 }
 function renderKrDraftList(){
   const el=document.getElementById('kr-form-list');if(!el)return;
