@@ -2231,14 +2231,16 @@ function sprintBanner(targetId){
   const sp=activeSp();
   const all=Object.values(tasks);
   const spT=sp?all.filter(t=>t.sprint===sp.id):[];
-  const done=spT.filter(isSprintDone).length;
-  const total=spT.length;
+  const computable=spT.filter(countsForPct);   // excluye bloqueadas abiertas
+  const blockedN=spT.length-computable.length;
+  const done=computable.filter(isSprintDone).length;
+  const total=computable.length;
   const pct=total?Math.round(done/total*100):0;
   const el=document.getElementById(targetId);if(!el)return;
   if(sp){
     el.innerHTML=`<div class="sprint-banner">
       <div class="sprint-info"><div class="sprint-label">Sprint activo</div><div class="sprint-name">${esc(sp.name)}</div><div class="sprint-dates">${fmtD(sp.start)} → ${fmtD(sp.end)}</div></div>
-      <div class="sprint-progress-wrap"><div class="sprint-progress-label"><span>${done}/${total} completadas</span><span>${pct}%</span></div><div class="sprint-progress-bar"><div class="sprint-progress-fill" style="width:${pct}%"></div></div></div>
+      <div class="sprint-progress-wrap"><div class="sprint-progress-label"><span>${done}/${total} completadas${blockedN?` &middot; <span style="color:var(--red);font-weight:700">\u{1F6AB} ${blockedN} bloqueada${blockedN!==1?'s':''} (no computan)</span>`:''}</span><span>${total?pct+'%':'—'}</span></div><div class="sprint-progress-bar"><div class="sprint-progress-fill" style="width:${pct}%"></div></div></div>
       <div class="sprint-actions">
         <button class="btn-sprint btn-sprint-close" onclick="closeSprint('${sp.id}')">Cerrar sprint</button>
         <button class="btn-sprint btn-sprint-new" onclick="openSprintModal()">+ Sprint</button>
@@ -2388,11 +2390,14 @@ function renderDash(){
         // Reclasificar review en pendingTasksList (misma lógica que adjustHist)
         const reviewInPending=(snap.pendingTasksList||[]).filter(t=>t.status==='review'||t.status==='done').length;
         sDone=(snap.doneTasks||0)+reviewInPending;
-        sTotal=snap.totalTasks||0;
+        // Bloqueadas abiertas: fuera del denominador. Snapshots nuevos ya traen
+        // totalTasks neto (marcados con blockedExcluded); en los viejos se resta.
+        const blkPend=(snap.pendingTasksList||[]).filter(t=>t.blocked&&!(t.status==='review'||t.status==='done')).length;
+        sTotal=(snap.blockedExcluded!=null)?(snap.totalTasks||0):Math.max(0,(snap.totalTasks||0)-blkPend);
         pct=sTotal?Math.round(sDone/sTotal*100):0;
       }else{
         // Fallback para sprints sin snapshot: incluir movedFromSprint
-        const sT=all.filter(t=>t.sprint===s.id||t.movedFromSprint===s.id);
+        const sT=all.filter(t=>(t.sprint===s.id||t.movedFromSprint===s.id)&&countsForPct(t));
         sDone=sT.filter(isSprintDone).length;
         sTotal=sT.length;
         pct=sTotal?Math.round(sDone/sTotal*100):0;
@@ -2403,7 +2408,7 @@ function renderDash(){
           <div class="sprint-hist-name" style="flex:1">${esc(s.name)}</div>
           <div class="sprint-hist-done">${sDone} ✓</div>
           <div class="sprint-hist-total">/ ${sTotal}</div>
-          <div style="font-size:10px;font-weight:700;color:${barColor}">${pct}%</div>
+          <div style="font-size:10px;font-weight:700;color:${barColor}">${sTotal?pct+'%':'—'}</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <div style="flex:1;height:4px;background:var(--gray-light);border-radius:2px;overflow:hidden">
@@ -3008,6 +3013,14 @@ function todayMs(){const t=new Date();t.setHours(0,0,0,0);return t.getTime();}
 // Backlog, Por hacer y En progreso cuentan como SIN COMPLETAR.
 function isSprintDone(t){return t&&(t.status==='done'||t.status==='review');}
 
+// ── Regla de bloqueo (impedimentos) ──
+// Una tarea BLOQUEADA y SIN completar NO computa para el % de desempeno:
+// se sigue mostrando en el sprint y se arrastra al siguiente, pero se excluye
+// tanto del numerador como del DENOMINADOR (no genera % de incumplimiento).
+// Si esta bloqueada pero ya se completo (done/review), SI cuenta como completada.
+function isBlockedOpen(t){return !!(t&&t.blocked&&!isSprintDone(t));}
+function countsForPct(t){return !isBlockedOpen(t);}
+
 // ── Colaboradores: multi-tag input ──────────────────────────────────────────
 let _collabTags=[];
 function collabSetTags(arr){
@@ -3233,6 +3246,11 @@ async function closeSprint(id){
   // done + review = completadas; backlog/todo/progress = pendientes (se mueven al siguiente)
   const doneTasks=sprintTasks.filter(isSprintDone);
   const pendingTasks=sprintTasks.filter(t=>!isSprintDone(t));
+  // Bloqueadas abiertas: se arrastran al siguiente sprint como cualquier pendiente,
+  // pero NO computan en el % (se excluyen del denominador).
+  const blockedOpen=sprintTasks.filter(isBlockedOpen);
+  const computableTotal=sprintTasks.filter(countsForPct).length;
+  const closePct=computableTotal?Math.round(doneTasks.length/computableTotal*100):0;
 
   // Calcular completadas por persona (done + review, con etiqueta)
   const byPerson={};
@@ -3269,8 +3287,9 @@ async function closeSprint(id){
   // Armar mensaje de confirmación
   const lines=[
     'Sprint: '+sp.name,
-    '\u2705 Tareas completadas: '+doneTasks.length+' de '+sprintTasks.length,
-    pendingTasks.length?('\u26a0 Pendientes que se moverán: '+pendingTasks.length):'',
+    '\u2705 Tareas completadas: '+doneTasks.length+' de '+computableTotal+' computables ('+closePct+'%)',
+    blockedOpen.length?('\u{1F6AB} Bloqueadas: '+blockedOpen.length+' (se listan pero NO cuentan para el %)'):'',
+    pendingTasks.length?('\u26a0 Pendientes que se moverán: '+pendingTasks.length+(blockedOpen.length?' (incluye las bloqueadas)':'')):'',
     nextSprint?('\u27a1 Siguiente sprint: '+nextSprint.name):'\u26a0 No hay sprint siguiente',
     '',
     '\u00bfConfirmas el cierre del sprint?'
@@ -3292,10 +3311,13 @@ async function closeSprint(id){
     sprintStart:sp.start||'',
     sprintEnd:sp.end||'',
     closedAt:Date.now(),
-    totalTasks:sprintTasks.length,
+    totalTasks:computableTotal,                    // denominador del % (sin bloqueadas)
+    tasksInSprint:sprintTasks.length,              // total nominal, solo informativo
+    blockedExcluded:blockedOpen.length,            // marca de snapshot con regla nueva
+    blockedExcludedList:blockedOpen.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',blockedReason:t.blockedReason||null})),
     doneTasks:doneTasks.length,
-    pendingTasks:pendingTasks.length,
-    completionPct:sprintTasks.length?Math.round(doneTasks.length/sprintTasks.length*100):0,
+    pendingTasks:pendingTasks.length-blockedOpen.length,
+    completionPct:closePct,
     totalBlockedDays,
     blockedByPerson,
     byPerson,
@@ -3441,7 +3463,10 @@ async function rebuildSprintHistory(){
     // movido al cierre), más las "Completado" que siguen en el sprint
     const doneTasks=sprintTasks.filter(t=>t.status==='review'||(t.status==='done'&&t.sprint===sp.id));
     // Pendientes: el resto (backlog / por hacer / en progreso, y movidas)
-    const pendingTasks=sprintTasks.filter(t=>!(t.status==='review'||(t.status==='done'&&t.sprint===sp.id)));
+    const pendingAll=sprintTasks.filter(t=>!(t.status==='review'||(t.status==='done'&&t.sprint===sp.id)));
+    // Bloqueadas abiertas: se listan pero quedan fuera del denominador
+    const blockedOpen=pendingAll.filter(t=>t.blocked);
+    const pendingTasks=pendingAll.filter(t=>!t.blocked);
     const allSprintTasks=[...doneTasks,...pendingTasks];
 
     const byPerson={};
@@ -3460,12 +3485,14 @@ async function rebuildSprintHistory(){
       sprintEnd:sp.end||'',
       closedAt:sp.closedAt||Date.now(),
       totalTasks:total,
+      tasksInSprint:doneTasks.length+pendingAll.length,
+      blockedExcluded:blockedOpen.length,
       doneTasks:doneTasks.length,
       pendingTasks:pendingTasks.length,
       completionPct:total?Math.round(doneTasks.length/total*100):0,
       byPerson,
       doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||'',collaborators:t.collaborators||null})),
-      pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',collaborators:t.collaborators||null})),
+      pendingTasksList:pendingAll.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',blocked:!!t.blocked,blockedReason:t.blockedReason||null,collaborators:t.collaborators||null})),
       rebuilt:true
     };
     updates['sprintHistory/'+sp.id]=snapshot;
@@ -3505,7 +3532,7 @@ async function recalcSprintHistory(id){
     end:(sp&&sp.end)||(prev&&prev.sprintEnd)||'',
     closedAt:(prev&&prev.closedAt)||(sp&&sp.closedAt)||Date.now()
   };
-  if(!confirm('Recalcular historial de:\n'+meta.name+'\n\nSe reconstruirá con los estatus ACTUALES de las tareas y la regla:\n• Completadas = Completado + En revisión\n• Pendientes = movidas al cierre + sin completar\n\nSe conserva la fecha de cierre original. ¿Continuar?'))return;
+  if(!confirm('Recalcular historial de:\n'+meta.name+'\n\nSe reconstruirá con los estatus ACTUALES de las tareas y la regla:\n• Completadas = Completado + En revisión\n• Pendientes = movidas al cierre + sin completar\n• Bloqueadas = se listan pero NO cuentan para el %\n\nSe conserva la fecha de cierre original. ¿Continuar?'))return;
 
   badge('wait','Recalculando...');
   const allTasks=Object.entries(tasks).map(([k,v])=>({...v,id:k}));
@@ -3515,7 +3542,10 @@ async function recalcSprintHistory(id){
   // tarea sigue en este sprint (si se completó después en otro sprint, para
   // este sprint quedó pendiente).
   const doneTasks=pool.filter(t=>t.status==='review'||(t.status==='done'&&t.sprint===id));
-  const pendingTasks=pool.filter(t=>!(t.status==='review'||(t.status==='done'&&t.sprint===id)));
+  const pendingAll=pool.filter(t=>!(t.status==='review'||(t.status==='done'&&t.sprint===id)));
+  // Bloqueadas abiertas: se listan pero NO entran al denominador
+  const blockedOpen=pendingAll.filter(t=>t.blocked);
+  const pendingTasks=pendingAll.filter(t=>!t.blocked);
   const total=doneTasks.length+pendingTasks.length;
 
   const byPerson={};
@@ -3533,12 +3563,14 @@ async function recalcSprintHistory(id){
     sprintEnd:meta.end,
     closedAt:meta.closedAt,
     totalTasks:total,
+    tasksInSprint:doneTasks.length+pendingAll.length,
+    blockedExcluded:blockedOpen.length,
     doneTasks:doneTasks.length,
     pendingTasks:pendingTasks.length,
     completionPct:total?Math.round(doneTasks.length/total*100):0,
     byPerson,
     doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||'',collaborators:t.collaborators||null})),
-    pendingTasksList:pendingTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',collaborators:t.collaborators||null})),
+    pendingTasksList:pendingAll.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',blocked:!!t.blocked,blockedReason:t.blockedReason||null,collaborators:t.collaborators||null})),
     recalculatedAt:Date.now()
   };
 
@@ -3584,6 +3616,7 @@ function renderSprintLog(){
   function adjustHist(h){
     const byP=JSON.parse(JSON.stringify(h.byPerson||{}));
     const pendingList=[];
+    const blockedList=[];   // bloqueadas: se muestran, no computan
 
     // 1) Migrar formato viejo: " · En revisión" embebido en titles → campo review separado
     Object.keys(byP).forEach(p=>{
@@ -3618,6 +3651,9 @@ function renderSprintLog(){
           byP[p].titles=byP[p].titles||[];
           if(!byP[p].titles.includes(t.title||''))byP[p].titles.push(t.title||'');
         }
+      }else if(t.blocked){
+        // Bloqueada y sin completar: se muestra en el sprint pero NO computa
+        blockedList.push(t);
       }else{
         pendingList.push(t);
       }
@@ -3632,9 +3668,15 @@ function renderSprintLog(){
     });
 
     const done=Object.values(byP).reduce((a,d)=>a+(d.done||0)+(d.review||0),0);
-    const total=(h.totalTasks!=null)?h.totalTasks:done+pendingList.length;
+    // El denominador nunca incluye bloqueadas abiertas. Snapshots nuevos ya traen
+    // totalTasks neto (blockedExcluded presente); en los viejos hay que restarlas.
+    let total;
+    if(h.totalTasks!=null)
+      total=(h.blockedExcluded!=null)?h.totalTasks:Math.max(0,h.totalTasks-blockedList.length);
+    else
+      total=done+pendingList.length;
     const pct=total?Math.round(done/total*100):0;
-    return{done,total,pending:pendingList.length,pct,byP,pendingList};
+    return{done,total,pending:pendingList.length,pct,byP,pendingList,blockedList,blocked:blockedList.length};
   }
 
   const adjMap={};
@@ -3693,28 +3735,35 @@ function renderSprintLog(){
   // ── Resumen global ──
   const totalDone=history.reduce((a,h)=>a+adjOf(h).done,0);
   const totalAll=history.reduce((a,h)=>a+adjOf(h).total,0);
-  const avgPct=history.length?Math.round(history.reduce((a,h)=>a+adjOf(h).pct,0)/history.length):0;
+  // Sprints sin tareas computables (todo bloqueado) no distorsionan el promedio
+  const ratedHist=history.filter(h=>adjOf(h).total>0);
+  const avgPct=ratedHist.length?Math.round(ratedHist.reduce((a,h)=>a+adjOf(h).pct,0)/ratedHist.length):0;
 
   const globalByPerson={};
   history.forEach(h=>{
     const adj=adjOf(h);
     Object.entries(adj.byP).forEach(([p,d])=>{
-      if(!globalByPerson[p])globalByPerson[p]={done:0,review:0,pending:0};
+      if(!globalByPerson[p])globalByPerson[p]={done:0,review:0,pending:0,blocked:0};
       globalByPerson[p].done+=(d.done||0);
       globalByPerson[p].review+=(d.review||0);
     });
     adj.pendingList.forEach(t=>{
       const p=t.assignee||'Sin asignar';
-      if(!globalByPerson[p])globalByPerson[p]={done:0,review:0,pending:0};
+      if(!globalByPerson[p])globalByPerson[p]={done:0,review:0,pending:0,blocked:0};
       globalByPerson[p].pending++;
+    });
+    (adj.blockedList||[]).forEach(t=>{
+      const p=t.assignee||'Sin asignar';
+      if(!globalByPerson[p])globalByPerson[p]={done:0,review:0,pending:0,blocked:0};
+      globalByPerson[p].blocked=(globalByPerson[p].blocked||0)+1;
     });
   });
   const allGlobalTeam=new Set([...config.assignees,...Object.keys(globalByPerson)]);
 
   const personRows=[...allGlobalTeam].sort().map(p=>{
-    const d=globalByPerson[p]||{done:0,review:0,pending:0};
+    const d=globalByPerson[p]||{done:0,review:0,pending:0,blocked:0};
     const completedTotal=(d.done||0)+(d.review||0);
-    const total=completedTotal+(d.pending||0);
+    const total=completedTotal+(d.pending||0);   // bloqueadas fuera del denominador
     const pct=total?Math.round(completedTotal/total*100):null;
     const barColor=pct===null?'var(--gray-light)':pct>=80?'var(--green)':pct>=50?'var(--orange)':'var(--red)';
     const trend=personTrend[p]?sparkline(personTrend[p]):'';
@@ -3724,7 +3773,7 @@ function renderSprintLog(){
         <div style="width:${pct||0}%;height:100%;background:${barColor};border-radius:4px"></div>
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--green);white-space:nowrap">${completedTotal}✓</div>
-      <div style="font-size:11px;color:var(--orange);white-space:nowrap">${d.pending?d.pending+'⏳':''}</div>
+      <div style="font-size:11px;color:var(--orange);white-space:nowrap">${d.pending?d.pending+'⏳':''}${d.blocked?`<span style="color:var(--red)" title="Bloqueadas: no computan para el %"> ${d.blocked}\u{1F6AB}</span>`:''}</div>
       <div style="display:flex;align-items:center;overflow:hidden;min-width:0">${trend}</div>
     </div>`;
   }).join('');
@@ -3781,11 +3830,18 @@ function renderSprintLog(){
       const p=t.assignee||'Sin asignar';
       if(!pendingByPerson[p])pendingByPerson[p]=[];
       const stLb=CMAP[t.status]?' · '+CMAP[t.status].lb:'';
-      const blkTag=t.blocked?' 🚫':'';
-      pendingByPerson[p].push((t.title||'')+stLb+blkTag);
+      pendingByPerson[p].push((t.title||'')+stLb);
+    });
+    // Bloqueadas: se listan aparte, NO entran al % de la persona ni del sprint
+    const blockedListByPerson={};
+    (adj.blockedList||[]).forEach(t=>{
+      const p=t.assignee||'Sin asignar';
+      if(!blockedListByPerson[p])blockedListByPerson[p]=[];
+      const stLb=CMAP[t.status]?' · '+CMAP[t.status].lb:'';
+      blockedListByPerson[p].push((t.title||'')+stLb+(t.blockedReason?' — '+t.blockedReason:''));
     });
 
-    const allTeam=new Set([...config.assignees,...Object.keys(byP),...Object.keys(pendingByPerson)]);
+    const allTeam=new Set([...config.assignees,...Object.keys(byP),...Object.keys(pendingByPerson),...Object.keys(blockedListByPerson)]);
     const teamList=selPerson?[selPerson]:[...allTeam].sort();
 
     const personRows=teamList.map(p=>{
@@ -3795,7 +3851,9 @@ function renderSprintLog(){
       const reviewCnt=(d?.review||0);
       const totalDone=doneCnt+reviewCnt;
       const pendCnt=pending?pending.length:0;
-      const total=totalDone+pendCnt;
+      const blockedItems=blockedListByPerson[p]||[];
+      const blkCnt=blockedItems.length;
+      const total=totalDone+pendCnt;   // bloqueadas excluidas del denominador
       const pct=total?Math.round(totalDone/total*100):null;
       const pctColor=pct===null?'var(--gray)':pct===100?'var(--green)':pct>=60?'var(--orange)':'var(--red)';
 
@@ -3820,6 +3878,8 @@ function renderSprintLog(){
           const collabPills=collabs.length?collabs.map(c=>`<span style="padding:0 4px;background:rgba(251,133,0,.12);border-radius:8px;font-size:9px;white-space:nowrap">👥${esc(c)}</span>`).join(' '):'';
           return`<span style="display:inline-flex;align-items:center;gap:3px;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(251,133,0,.1);border-radius:4px;flex-wrap:wrap">⏳ ${esc(t.title||t)}${collabPills?'&thinsp;'+collabPills:''}</span>`;
         }).join('')}</div>`:'';
+      const blockedCell=blkCnt
+        ?`<div style="font-size:10px;color:var(--red);margin-top:${(doneCntReal||reviewCntReal||pendCnt)?2:0}px">${blockedItems.map(t=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;background:rgba(231,76,60,.1);border-radius:4px">\u{1F6AB} ${esc(t)}</span>`).join('')}</div>`:'';
 
       const rowBg=pendCnt&&!totalDone?'rgba(231,76,60,.04)':pendCnt?'rgba(251,133,0,.04)':'';
 
@@ -3832,9 +3892,10 @@ function renderSprintLog(){
           ${pct!==null?`<span style="font-size:12px;font-weight:800;color:${pctColor}">${pct}%</span><br>`:'' }
           ${totalDone?`<span style="font-size:10px;color:var(--green)">${doneCnt?doneCnt+'✓':''} ${reviewCnt?''+reviewCnt+'👁':''}</span>`:''}
           ${pendCnt?`<span style="font-size:10px;color:var(--orange)">${pendCnt}⏳</span>`:''}
-          ${!totalDone&&!pendCnt?'<span style="font-size:10px;color:var(--gray)">—</span>':''}
+          ${blkCnt?`<span style="font-size:10px;color:var(--red)" title="No computan para el %">${blkCnt}\u{1F6AB}</span>`:''}
+          ${!totalDone&&!pendCnt&&!blkCnt?'<span style="font-size:10px;color:var(--gray)">—</span>':''}
         </td>
-        <td style="padding:7px 8px">${doneCell}${reviewCell}${pendCell}</td>
+        <td style="padding:7px 8px">${doneCell}${reviewCell}${pendCell}${blockedCell}</td>
       </tr>`;
     }).join('');
 
@@ -3847,13 +3908,15 @@ function renderSprintLog(){
         <thead><tr style="background:var(--navy)">
           <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left;width:18%">Persona</th>
           <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:center;width:12%">% Cumpl.</th>
-          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left">✅ Completadas · 👁 En revisión · ⏳ Pendientes (con estatus)</th>
+          <th style="padding:6px 8px;font-size:10px;font-weight:700;color:#fff;text-align:left">✅ Completadas · 👁 En revisión · ⏳ Pendientes · 🚫 Bloqueadas (no computan)</th>
         </tr></thead>
         <tbody>${personRows}</tbody>
       </table>`;
 
     const pendingBadge=adj.pending
       ?`<span style="padding:2px 8px;background:rgba(251,133,0,.15);color:var(--orange);border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">${adj.pending} sin completar</span>`:'';
+    const blockedExclBadge=adj.blocked
+      ?`<span title="Bloqueadas: se listan pero no cuentan para el %" style="padding:2px 8px;background:rgba(231,76,60,.12);color:var(--red);border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">\u{1F6AB} ${adj.blocked} no computa${adj.blocked!==1?'n':''}</span>`:'';
 
     return`<div class="dash-card" style="margin-bottom:14px">
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap">
@@ -3864,9 +3927,10 @@ function renderSprintLog(){
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${pendingBadge}
+          ${blockedExclBadge}
           ${blockedDaysTag}
           <span style="padding:2px 10px;background:rgba(16,185,129,.15);color:var(--green);border-radius:12px;font-size:11px;font-weight:700">${adj.done}/${adj.total} ✓</span>
-          <span style="padding:2px 10px;background:${barColor}22;color:${barColor};border-radius:12px;font-size:11px;font-weight:700">${adj.pct}%</span>
+          <span style="padding:2px 10px;background:${barColor}22;color:${barColor};border-radius:12px;font-size:11px;font-weight:700">${adj.total?adj.pct+'%':'—'}</span>
           <button onclick="recalcSprintHistory('${esc(h.sprintId)}')" title="Recalcular historial" style="padding:2px 8px;background:none;border:1px solid var(--gray-light);border-radius:8px;font-size:10px;font-weight:700;color:var(--gray);cursor:pointer">↺ Recalc.</button>
         </div>
       </div>
