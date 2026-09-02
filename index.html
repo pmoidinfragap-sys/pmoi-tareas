@@ -985,6 +985,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
           <button class="btn-save" id="cfg-assignee-add" style="flex:0 0 auto">＋ Guardar</button>
         </div>
         <div id="cfg-assignee-hint" style="font-size:10px;color:var(--gray);margin-top:5px"></div>
+        <div id="cfg-orphan-wrap" style="display:none;margin-top:12px;padding-top:10px;border-top:1px dashed var(--gray-light)">
+          <div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:4px">👻 Con historial, fuera del equipo</div>
+          <div style="font-size:10px;color:var(--gray);margin-bottom:8px;line-height:1.5">Estas personas aparecen en tareas o sprints cerrados pero ya no están en la lista de arriba, por eso siguen saliendo en los resúmenes. Márcalas como <b>baja (⏻)</b> para sacarlas de los % y de los reportes.</div>
+          <div class="config-list" id="cfg-orphan-list"></div>
+        </div>
       </div>
       <div class="config-section">
         <div class="config-section-title">🏷 Etiquetas de proyecto</div>
@@ -1298,6 +1303,29 @@ function roleAbbr(role){
 // asignar a tareas nuevas. Es reversible: al reactivarla, todo vuelve.
 function isInactive(n){return !!(n&&Array.isArray(config.inactive)&&config.inactive.includes(n));}
 function activeAssignees(){return config.assignees.filter(n=>!isInactive(n));}
+// Censo de TODA persona que aparece en datos (tareas, sprints cerrados, rutinas),
+// esté o no en la lista de responsables. Necesario para poder dar de baja a
+// alguien que ya fue borrado del equipo pero sigue saliendo en los reportes.
+function knownPeople(){
+  const set=new Set();
+  Object.values(tasks||{}).forEach(t=>{
+    if(t.assignee)set.add(t.assignee);
+    if(t.reviewer)set.add(t.reviewer);
+    (t.collaborators||[]).forEach(c=>{if(c)set.add(c);});
+  });
+  Object.values(sprintHistory||{}).forEach(h=>{
+    Object.keys(h.byPerson||{}).forEach(p=>set.add(p));
+    [...(h.doneTasksList||[]),...(h.pendingTasksList||[]),...(h.blockedExcludedList||[])]
+      .forEach(t=>{if(t&&t.assignee)set.add(t.assignee);});
+  });
+  try{Object.values(dailyTasks||{}).forEach(t=>{if(t.assignee)set.add(t.assignee);});}catch(e){}
+  set.delete('Sin asignar');
+  return [...set].filter(Boolean).sort();
+}
+// Personas con historial que YA NO están en la lista de responsables
+function orphanPeople(){return knownPeople().filter(p=>!config.assignees.includes(p));}
+// Escapa un valor para usarlo dentro de onclick="fn('...')"
+function jsArg(v){return esc(String(v||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"));}
 function inactiveChip(n){return isInactive(n)?'<span style="margin-left:4px;padding:0 5px;background:rgba(122,138,158,.18);color:var(--gray);border-radius:8px;font-size:9px;font-weight:700">baja</span>':'';}
 
 function roleOf(name){if(!name)return null;return(config.roles&&config.roles[slugKey(name)])||null;}
@@ -1389,6 +1417,24 @@ function renderConfigLists(){
         <button class="config-item-del" title="Eliminar por completo" onclick="delAssignee(${i})">✕</button>
       </div>`;}).join('')
     :'<div class="config-empty">Sin responsables definidos aún</div>';}
+  // Personas con historial que ya no están en el equipo: se pueden dar de baja
+  const ow=document.getElementById('cfg-orphan-wrap');
+  const ol=document.getElementById('cfg-orphan-list');
+  if(ow&&ol){
+    const orph=orphanPeople();
+    ow.style.display=orph.length?'':'none';
+    ol.innerHTML=orph.map(nm=>{
+      const baja=isInactive(nm);
+      return`<div class="config-item"${baja?' style="opacity:.55"':''}>
+        <span class="avatar" style="width:22px;height:22px;font-size:10px">${esc(av(nm))}</span>
+        <span class="config-item-text">
+          <span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">${esc(nm)}${baja
+            ?'<span style="padding:0 5px;background:rgba(122,138,158,.18);color:var(--gray);border-radius:8px;font-size:9px;font-weight:700">baja</span>'
+            :'<span style="padding:0 5px;background:rgba(251,133,0,.15);color:var(--orange);border-radius:8px;font-size:9px;font-weight:700">sigue contando</span>'}</span>
+        </span>
+        <button class="config-item-del" style="color:${baja?'var(--green)':'var(--orange)'}" title="${baja?'Reactivar':'Dar de baja: sale de los % y de los resúmenes'}" onclick="toggleInactiveByName('${jsArg(nm)}')">${baja?'↩':'⏻'}</button>
+      </div>`;}).join('');
+  }
   const dlN=document.getElementById('cfg-assignee-datalist');
   if(dlN)dlN.innerHTML=config.assignees.map(n=>`<option value="${esc(n)}">`).join('');
   const tl=document.getElementById('cfg-tag-list');
@@ -4116,23 +4162,27 @@ async function delAssignee(i){
 }
 // Alta/baja del equipo (reversible). La baja excluye a la persona de TODO
 // cálculo de % de sprint, sin borrar sus tareas ni su historial.
-async function toggleAssigneeActive(i){
-  const n=config.assignees[i];if(n===undefined)return;
+// Trabaja por NOMBRE para que también funcione con gente ya borrada del roster.
+async function toggleInactiveByName(n){
+  if(!n)return;
   const list=Array.isArray(config.inactive)?config.inactive:[];
   if(isInactive(n)){
     await fbSet('config/inactive',list.filter(x=>x!==n));
     badge('ok',n+' reactivado');
+    renderConfigLists();
     return;
   }
   // Avisar de tareas abiertas que quedarán huérfanas
-  const abiertas=Object.values(tasks).filter(t=>t.assignee===n&&!isSprintDone(t)).length;
+  const abiertas=Object.values(tasks||{}).filter(t=>t.assignee===n&&!isSprintDone(t)).length;
   const msg='Dar de baja a '+n+'\n\n• Deja de contar en el % de todos los sprints (actuales e históricos)\n• Desaparece de los resúmenes por persona\n• Ya no se podrá asignar a tareas nuevas\n• Sus tareas y su historial NO se borran\n'+
     (abiertas?('\n⚠ Tiene '+abiertas+' tarea(s) sin completar. Reasígnalas o quedarán fuera de todo cálculo.\n'):'')+
     '\nEs reversible. ¿Continuar?';
   if(!confirm(msg))return;
   await fbSet('config/inactive',[...list,n].sort());
   badge('ok',n+' dado de baja');
+  renderConfigLists();
 }
+function toggleAssigneeActive(i){return toggleInactiveByName(config.assignees[i]);}
 async function addTag(){
   const inp=document.getElementById('cfg-tag-input');
   const v=inp.value.trim();if(!v)return;
