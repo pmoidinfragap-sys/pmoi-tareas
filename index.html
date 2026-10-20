@@ -1149,6 +1149,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF1F6;color:var(--
         <div id="cfg-assignee-hint" style="font-size:10px;color:var(--gray);margin-top:5px"></div>
       </div>
       <div class="config-section">
+        <div class="config-section-title">🚪 Personal dado de baja</div>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;line-height:1.5">Se oculta del historial de sprints, dashboard, rutinas y calendario. <b>No borra datos</b>: los totales históricos de cada sprint se conservan. Puedes agregar nombres que ya no estén en la lista de responsables (ej. que solo aparecen en el historial).</div>
+        <div class="config-list" id="cfg-inactive-list"></div>
+        <div class="config-add-row">
+          <input class="form-input" id="cfg-inactive-input" placeholder="Nombre exacto como aparece en el historial..." maxlength="60" list="cfg-inactive-datalist" autocomplete="off">
+          <datalist id="cfg-inactive-datalist"></datalist>
+          <button class="btn-save" id="cfg-inactive-add">Ocultar</button>
+        </div>
+      </div>
+      <div class="config-section">
         <div class="config-section-title">🏷 Etiquetas de proyecto</div>
         <div class="config-list" id="cfg-tag-list"></div>
         <div class="config-add-row">
@@ -1382,7 +1392,7 @@ const COLS = [
 ];
 const CMAP = Object.fromEntries(COLS.map(c=>[c.id,c]));
 
-let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[],roles:{}}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
+let db=null, tasks={}, sprints={}, okrs={}, sprintHistory={}, sprintBaselines={}, config={assignees:[],tags:[],areas:[],roles:{},inactive:[]}, curView='kanban', editId=null, detailId=null, editOkrId=null, editSprintId=null, okrKrDraft=[], okrDashTab='cards', okrView='ejes';
 // Ausencias (vacaciones/permisos/incapacidades/comisiones) y cumpleaños
 let vacations={}, birthdays={}, trips={}, calPerson='';
 // Notas (estilo OneNote): secciones → páginas
@@ -1411,7 +1421,7 @@ async function initFB(){
     db=firebase.database();
     badge('ok','Conectado');
     db.ref('tasks').on('value',s=>{tasks=s.val()||{};rebuildFilters();refresh();badge('ok','Sync');});
-    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[],areas:d.areas||[],roles:d.roles||{}};rebuildConfigSelects();refresh();});
+    db.ref('config').on('value',s=>{const d=s.val()||{};config={assignees:d.assignees||[],tags:d.tags||[],areas:d.areas||[],roles:d.roles||{},inactive:d.inactive||[]};rebuildConfigSelects();refresh();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();});
     db.ref('sprints').on('value',s=>{sprints=s.val()||{};rebuildSprintSel();renderSprintModal();refresh();if(document.getElementById('page-calendar')?.classList.contains('active'))renderCalendar();badge('ok','Sync');});
     db.ref('okrs').on('value',s=>{okrs=s.val()||{};rebuildKrSel();renderOkrPage();renderDashOkr();badge('ok','Sync');});
     db.ref('dailyTasks').on('value',s=>{dailyTasks=s.val()||{};renderDailyPage();renderDashDaily();badge('ok','Sync');});
@@ -1453,6 +1463,21 @@ function roleAbbr(role){
   if(!words.length)return raw.slice(0,3).toUpperCase();
   if(words.length===1)return words[0].slice(0,3).toUpperCase();
   return words.map(w=>w[0].toUpperCase()).slice(0,4).join('');
+}
+// ── PERSONAL DADO DE BAJA ──────────────────────────────────────────────
+// Se ocultan de vistas por persona (historial, dashboard, rutinas, calendario).
+// Los datos NO se borran: las tareas y los totales históricos de cada sprint
+// se conservan tal cual. Comparación tolerante a mayúsculas y acentos.
+function isGone(n){if(!n)return false;const k=slugKey(n);return(config.inactive||[]).some(x=>slugKey(x)===k);}
+function allKnownNames(){
+  const s=new Set(config.assignees);
+  Object.values(tasks).forEach(t=>{if(t.assignee)s.add(t.assignee);(t.collaborators||[]).forEach(c=>s.add(c));});
+  Object.values(sprintHistory).forEach(h=>{
+    Object.keys(h.byPerson||{}).forEach(n=>s.add(n));
+    [...(h.pendingTasksList||[]),...(h.doneTasksList||[])].forEach(t=>{if(t.assignee)s.add(t.assignee);});
+  });
+  Object.values(dailyTasks).forEach(t=>{if(t.assignee)s.add(t.assignee);});
+  return [...s].filter(Boolean).sort();
 }
 function roleOf(name){if(!name)return null;return(config.roles&&config.roles[slugKey(name)])||null;}
 function roleTxt(name){const r=roleOf(name);return r&&r.role?r.role:'';}
@@ -1503,7 +1528,7 @@ function rebuildFilters(){
     ...config.assignees,
     ...Object.values(tasks).map(t=>t.assignee).filter(Boolean),
     ...Object.values(tasks).flatMap(t=>t.collaborators||[]).filter(Boolean)
-  ])].sort();
+  ])].filter(n=>!isGone(n)).sort();
   fA.innerHTML='<option value="">Todos los responsables</option>'+names.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${nameOpt(n)}</option>`).join('');
 }
 function rebuildConfigSelects(){
@@ -1540,6 +1565,20 @@ function renderConfigLists(){
     :'<div class="config-empty">Sin responsables definidos aún</div>';}
   const dlN=document.getElementById('cfg-assignee-datalist');
   if(dlN)dlN.innerHTML=config.assignees.map(n=>`<option value="${esc(n)}">`).join('');
+  const il=document.getElementById('cfg-inactive-list');
+  if(il){
+    const inact=config.inactive||[];
+    il.innerHTML=inact.length?inact.map((n,i)=>{
+      const open=Object.values(tasks).filter(t=>t.assignee&&slugKey(t.assignee)===slugKey(n)&&t.status!=='done').length;
+      return`<div class="config-item" style="opacity:.85">
+        <span class="avatar" style="width:22px;height:22px;font-size:10px;background:var(--gray)">${esc(av(n))}</span>
+        <span class="config-item-text">${esc(n)}${open?`<div style="font-size:10px;color:var(--orange);font-weight:700;margin-top:1px">⚠ ${open} tarea${open!==1?'s':''} abierta${open!==1?'s':''} — reasígnala${open!==1?'s':''}</div>`:''}</span>
+        <button class="config-item-del" style="color:var(--green);font-size:11px;font-weight:700" title="Reactivar" onclick="reactivatePerson(${i})">↺ Reactivar</button>
+      </div>`;}).join('')
+      :'<div class="config-empty">Nadie dado de baja</div>';
+  }
+  const dlI=document.getElementById('cfg-inactive-datalist');
+  if(dlI)dlI.innerHTML=allKnownNames().filter(n=>!isGone(n)).map(n=>`<option value="${esc(n)}">`).join('');
   const tl=document.getElementById('cfg-tag-list');
   if(tl){tl.innerHTML=config.tags.length
     ?config.tags.map((t,i)=>`<div class="config-item"><span class="config-item-text">${esc(t)}</span><button class="config-item-del" onclick="delTag(${i})">✕</button></div>`).join('')
@@ -1894,7 +1933,7 @@ function ausDias(a){
 function buildAusMap(){
   const map={};
   Object.values(vacations).forEach(a=>{
-    if(!a||!a.start)return;
+    if(!a||!a.start||isGone(a.person))return;
     const end=a.end||a.start;let cur=a.start,g=0;
     while(cur<=end&&g++<730){(map[cur]=map[cur]||[]).push(a);cur=isoAdd(cur,1);}
   });
@@ -1904,7 +1943,7 @@ function buildAusMap(){
 function buildTripMap(){
   const map={};
   Object.values(trips).forEach(v=>{
-    if(!v||!v.start)return;
+    if(!v||!v.start||isGone(v.person))return;
     const end=v.end||v.start;let cur=v.start,g=0;
     while(cur<=end&&g++<730){(map[cur]=map[cur]||[]).push(v);cur=isoAdd(cur,1);}
   });
@@ -1913,7 +1952,7 @@ function buildTripMap(){
 // Mapa "MM-DD" → [cumpleaños]
 function buildBdayMap(){
   const map={};
-  Object.values(birthdays).forEach(b=>{if(!b||!b.md)return;(map[b.md]=map[b.md]||[]).push(b);});
+  Object.values(birthdays).forEach(b=>{if(!b||!b.md||isGone(b.person))return;(map[b.md]=map[b.md]||[]).push(b);});
   return map;
 }
 function fmtMD(md){
@@ -2296,7 +2335,7 @@ function renderCalendar(){
   }).join('');
 
   // ── Panel: ausencias vigentes/próximas ───────────────────────────────
-  const ausArr=Object.values(vacations).filter(a=>a&&a.start&&(a.end||a.start)>=todayStr)
+  const ausArr=Object.values(vacations).filter(a=>a&&a.start&&(a.end||a.start)>=todayStr&&!isGone(a.person))
     .filter(a=>!pFilter||a.person===pFilter)
     .sort((a,b)=>a.start.localeCompare(b.start)).slice(0,8);
   const ausItems=ausArr.map(a=>{
@@ -2312,7 +2351,7 @@ function renderCalendar(){
   }).join('');
 
   // ── Panel: viajes en curso/próximos ──────────────────────────────────
-  const viaArr=Object.values(trips).filter(v=>v&&v.start&&(v.end||v.start)>=todayStr)
+  const viaArr=Object.values(trips).filter(v=>v&&v.start&&(v.end||v.start)>=todayStr&&!isGone(v.person))
     .filter(v=>!pFilter||v.person===pFilter)
     .sort((a,b)=>a.start.localeCompare(b.start)).slice(0,8);
   const viaItems=viaArr.map(v=>{
@@ -2329,7 +2368,7 @@ function renderCalendar(){
   }).join('');
 
   // ── Panel: próximos cumpleaños ───────────────────────────────────────
-  const bdArr=Object.values(birthdays).filter(b=>b&&b.md)
+  const bdArr=Object.values(birthdays).filter(b=>b&&b.md&&!isGone(b.person))
     .filter(b=>!pFilter||b.person===pFilter)
     .map(b=>({...b,dd:daysToBday(b.md)})).sort((a,b)=>a.dd-b.dd).slice(0,6);
   const bdItems=bdArr.map(b=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;margin-bottom:4px;background:${b.dd===0?'rgba(108,92,231,.1)':'var(--gray-pale)'}">
@@ -2439,10 +2478,10 @@ function renderDash(){
 
   // Carga ACTIVA (sin done)
   const byA={};
-  all.filter(t=>t.status!=='done').forEach(t=>{const k=t.assignee||'Sin asignar';byA[k]=(byA[k]||0)+1;});
+  all.filter(t=>t.status!=='done'&&!isGone(t.assignee)).forEach(t=>{const k=t.assignee||'Sin asignar';byA[k]=(byA[k]||0)+1;});
   // Carga HISTÓRICA (todas las tareas)
   const byAHist={};
-  all.forEach(t=>{const k=t.assignee||'Sin asignar';byAHist[k]=(byAHist[k]||0)+1;});
+  all.filter(t=>!isGone(t.assignee)).forEach(t=>{const k=t.assignee||'Sin asignar';byAHist[k]=(byAHist[k]||0)+1;});
   const maxW=Math.max(...Object.values(byAHist),1);
   // Unir responsables de ambos mapas
   const allAssignees=[...new Set([...Object.keys(byA),...Object.keys(byAHist)])].sort((a,b)=>(byAHist[b]||0)-(byAHist[a]||0));
@@ -2600,7 +2639,7 @@ function renderDashDaily(){
   const summary=document.getElementById('dash-daily-summary');
   if(!byPerson||!summary)return;
 
-  const all=Object.values(dailyTasks);
+  const all=Object.values(dailyTasks).filter(t=>!isGone(t.assignee));
   if(!all.length){
     byPerson.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div>Sin rutinas configuradas</div>';
     summary.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><a onclick="document.getElementById(&quot;nav-daily&quot;).click()" style="color:var(--navy-light);cursor:pointer;text-decoration:underline">Ir a Rutinas →</a></div>';
@@ -2948,7 +2987,7 @@ let dailyTasks={}, editDailyId=null;
 function rebuildDailyAssigneeSel(){
   const sel=document.getElementById('daily-filter-assignee');if(!sel)return;
   const cur=sel.value;
-  const names=[...new Set([...config.assignees,...Object.values(dailyTasks).map(t=>t.assignee).filter(Boolean)])].sort();
+  const names=[...new Set([...config.assignees,...Object.values(dailyTasks).map(t=>t.assignee).filter(Boolean)])].filter(n=>!isGone(n)).sort();
   sel.innerHTML='<option value="">Todos los responsables</option>'+names.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('');
 }
 
@@ -2957,6 +2996,7 @@ function renderDailyPage(){
   const filterA=document.getElementById('daily-filter-assignee')?.value||'';
   const q=(document.getElementById('daily-search')?.value||'').toLowerCase();
   const all=Object.values(dailyTasks).filter(t=>{
+    if(isGone(t.assignee))return false;
     if(filterA&&t.assignee!==filterA)return false;
     if(q&&!t.title?.toLowerCase().includes(q)&&!t.desc?.toLowerCase().includes(q))return false;
     return true;
@@ -3449,7 +3489,10 @@ async function closeSprint(id){
   const nextSprint=Object.entries(sprints)
     .map(([k,v])=>({...v,id:k}))
     .filter(s=>s.id!==id&&!s.closed&&!(s.active===true||s.active==='true'))
-    .filter(s=>s.start&&new Date(s.start+'T00:00:00').getTime()>=todayMs_)
+    // Antes exigía inicio >= hoy: si se cerraba un martes y el siguiente sprint
+    // empezó el lunes, no lo encontraba y las pendientes quedaban SIN sprint.
+    // Ahora basta con que el siguiente no haya terminado.
+    .filter(s=>s.start&&s.end&&new Date(s.end+'T00:00:00').getTime()>=todayMs_&&(!sp.start||s.start>sp.start))
     .sort((a,b)=>new Date(a.start+'T00:00:00')-new Date(b.start+'T00:00:00'))[0]||null;
 
   // Armar mensaje de confirmación
@@ -3610,85 +3653,87 @@ async function deleteSprint(id){
 }
 
 // ── SPRINT LOG PAGE ──────────────────────────────────────────────────────────
-// Reconstruye sprintHistory desde los sprints con closed:true y las tareas existentes
+// Constructor ÚNICO del snapshot de historial (lo usan Reconstruir, Recalcular,
+// Guardar y el cálculo al vuelo de sprints sin cierre formal).
+// Regla:
+//  • Completadas = "En revisión" (siempre) + "Completado" que sigue en el sprint
+//  • Pendientes  = movidas al cierre (movedFromSprint) + sin completar
+//  • Bloqueadas  = se listan pero NO entran al denominador
+function buildSprintSnapshot(meta){
+  const id=meta.id;
+  const allTasks=Object.entries(tasks).map(([k,v])=>({...v,id:k}));
+  const pool=allTasks.filter(t=>t.sprint===id||t.movedFromSprint===id);
+  const doneTasks=pool.filter(t=>t.status==='review'||(t.status==='done'&&t.sprint===id));
+  const pendingAll=pool.filter(t=>!(t.status==='review'||(t.status==='done'&&t.sprint===id)));
+  const blockedOpen=pendingAll.filter(t=>t.blocked);
+  const pendingTasks=pendingAll.filter(t=>!t.blocked);
+  const total=doneTasks.length+pendingTasks.length;
+  const byPerson={};
+  doneTasks.forEach(t=>{
+    const p=t.assignee||'Sin asignar';
+    if(!byPerson[p])byPerson[p]={done:0,titles:[]};
+    byPerson[p].done++;
+    byPerson[p].titles.push((t.title||'')+(t.status==='review'?' · En revisión':''));
+  });
+  return{
+    sprintId:id,
+    sprintName:meta.name||id,
+    sprintStart:meta.start||'',
+    sprintEnd:meta.end||'',
+    closedAt:meta.closedAt||sprintEndMs(meta.end),
+    totalTasks:total,
+    tasksInSprint:doneTasks.length+pendingAll.length,
+    blockedExcluded:blockedOpen.length,
+    doneTasks:doneTasks.length,
+    pendingTasks:pendingTasks.length,
+    completionPct:total?Math.round(doneTasks.length/total*100):0,
+    byPerson,
+    doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||'',collaborators:t.collaborators||null})),
+    pendingTasksList:pendingAll.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',blocked:!!t.blocked,blockedReason:t.blockedReason||null,collaborators:t.collaborators||null}))
+  };
+}
+// Fin del sprint como timestamp (23:59 local) — se usa como fecha de cierre
+// cuando el sprint nunca se cerró formalmente
+function sprintEndMs(end){return end?new Date(end+'T23:59:00').getTime():Date.now();}
+function spIsActive(s){return s&&(s.active===true||s.active==='true');}
+// Sprints que YA TERMINARON (o están marcados cerrados) pero no tienen snapshot.
+// Causa típica: se creó/activó el sprint de la semana siguiente sin usar
+// "Cerrar sprint" → el anterior quedaba inactivo, sin historial e invisible.
+function orphanSprints(){
+  const t=todayIso();
+  return Object.entries(sprints).map(([k,v])=>({...v,id:k}))
+    .filter(s=>!sprintHistory[s.id]&&!spIsActive(s)&&(s.closed===true||(s.end&&s.end<t)));
+}
+// Sprint activo cuyas fechas ya pasaron (nadie lo cerró)
+function staleActiveSprint(){
+  const t=todayIso();
+  return Object.entries(sprints).map(([k,v])=>({...v,id:k})).find(s=>spIsActive(s)&&s.end&&s.end<t)||null;
+}
+
+// Guarda en Firebase el historial de todos los sprints terminados sin snapshot
 async function rebuildSprintHistory(){
   if(!db){alert('Sin conexión a Firebase');return;}
-  const closedSprints=Object.entries(sprints)
-    .map(([k,v])=>({...v,id:k}))
-    .filter(s=>s.closed===true||(s.active===false&&s.closedAt));
-  if(!closedSprints.length){alert('No se encontraron sprints cerrados para reconstruir.');return;}
-
-  badge('wait','Reconstruyendo historial...');
-  const allTasks=Object.entries(tasks).map(([k,v])=>({...v,id:k}));
+  const orphans=orphanSprints();
+  if(!orphans.length){alert('Todos los sprints terminados ya tienen historial guardado.');return;}
+  if(!confirm('Se guardará en el historial '+orphans.length+' sprint(s) terminados sin cierre formal:\n\n'+orphans.map(s=>'• '+s.name+' ('+fmtD(s.start)+' → '+fmtD(s.end)+')').join('\n')+'\n\nSe calculan con los estatus ACTUALES de las tareas. ¿Continuar?'))return;
+  badge('wait','Guardando historial...');
   const updates={};
-
-  closedSprints.forEach(sp=>{
-    // Si ya tiene historial guardado, no sobreescribir
-    if(sprintHistory[sp.id])return;
-
-    const sprintTasks=allTasks.filter(t=>t.sprint===sp.id||t.movedFromSprint===sp.id);
-    // Completadas: "En revisión" SIEMPRE cuenta como completada (aunque se haya
-    // movido al cierre), más las "Completado" que siguen en el sprint
-    const doneTasks=sprintTasks.filter(t=>t.status==='review'||(t.status==='done'&&t.sprint===sp.id));
-    // Pendientes: el resto (backlog / por hacer / en progreso, y movidas)
-    const pendingAll=sprintTasks.filter(t=>!(t.status==='review'||(t.status==='done'&&t.sprint===sp.id)));
-    // Bloqueadas abiertas: se listan pero quedan fuera del denominador
-    const blockedOpen=pendingAll.filter(t=>t.blocked);
-    const pendingTasks=pendingAll.filter(t=>!t.blocked);
-    const allSprintTasks=[...doneTasks,...pendingTasks];
-
-    const byPerson={};
-    doneTasks.forEach(t=>{
-      const p=t.assignee||'Sin asignar';
-      if(!byPerson[p])byPerson[p]={done:0,titles:[]};
-      byPerson[p].done++;
-      byPerson[p].titles.push((t.title||'')+(t.status==='review'?' · En revisión':''));
-    });
-
-    const total=allSprintTasks.length;
-    const snapshot={
-      sprintId:sp.id,
-      sprintName:sp.name||sp.id,
-      sprintStart:sp.start||'',
-      sprintEnd:sp.end||'',
-      closedAt:sp.closedAt||Date.now(),
-      totalTasks:total,
-      tasksInSprint:doneTasks.length+pendingAll.length,
-      blockedExcluded:blockedOpen.length,
-      doneTasks:doneTasks.length,
-      pendingTasks:pendingTasks.length,
-      completionPct:total?Math.round(doneTasks.length/total*100):0,
-      byPerson,
-      doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||'',collaborators:t.collaborators||null})),
-      pendingTasksList:pendingAll.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',blocked:!!t.blocked,blockedReason:t.blockedReason||null,collaborators:t.collaborators||null})),
-      rebuilt:true
-    };
-    updates['sprintHistory/'+sp.id]=snapshot;
+  orphans.forEach(sp=>{
+    const closedAt=sp.closedAt||sprintEndMs(sp.end);
+    updates['sprintHistory/'+sp.id]={...buildSprintSnapshot({id:sp.id,name:sp.name,start:sp.start,end:sp.end,closedAt}),rebuilt:true};
+    updates['sprints/'+sp.id+'/closed']=true;
+    if(!sp.closedAt)updates['sprints/'+sp.id+'/closedAt']=closedAt;
   });
-
-  if(!Object.keys(updates).length){
-    badge('ok','Sync');
-    alert('Todos los sprints cerrados ya tienen historial guardado.');
-    return;
-  }
-
   try{
     await db.ref().update(updates);
-    badge('ok','Historial reconstruido');
-    alert('Historial reconstruido: '+Object.keys(updates).length+' sprint(s) procesado(s).\n\nNota: actualiza también las reglas de Firebase para incluir sprintHistory.');
+    badge('ok','Historial guardado');
   }catch(e){
     badge('wait','Error');
-    alert('Error al guardar historial: '+e.message+'\n\nRevisa las reglas de Firebase — falta permiso para sprintHistory.');
+    alert('Error al guardar historial: '+e.message+'\n\nRevisa las reglas de Firebase (permiso de escritura en sprintHistory).');
   }
 }
 
-// ── Recalcular el historial de UN sprint específico ──
-// Útil cuando se modificó un sprint ya cerrado o cambió la regla de cumplimiento.
-// Mantiene la fecha de cierre original y reconstruye:
-//  • Completadas: tareas done/review que siguen en el sprint
-//  • Pendientes: tareas que se MOVIERON al cierre (movedFromSprint) — aunque ya
-//    se hayan completado después, para ese sprint quedaron pendientes — más las
-//    que sigan en el sprint sin completar
+// Recalcular el historial de UN sprint (conserva la fecha de cierre original)
 async function recalcSprintHistory(id){
   if(!db)return;
   const sp=sprints[id];
@@ -3698,56 +3743,23 @@ async function recalcSprintHistory(id){
     name:(sp&&sp.name)||(prev&&prev.sprintName)||id,
     start:(sp&&sp.start)||(prev&&prev.sprintStart)||'',
     end:(sp&&sp.end)||(prev&&prev.sprintEnd)||'',
-    closedAt:(prev&&prev.closedAt)||(sp&&sp.closedAt)||Date.now()
+    closedAt:(prev&&prev.closedAt)||(sp&&sp.closedAt)||sprintEndMs(sp&&sp.end)
   };
-  if(!confirm('Recalcular historial de:\n'+meta.name+'\n\nSe reconstruirá con los estatus ACTUALES de las tareas y la regla:\n• Completadas = Completado + En revisión\n• Pendientes = movidas al cierre + sin completar\n• Bloqueadas = se listan pero NO cuentan para el %\n\nSe conserva la fecha de cierre original. ¿Continuar?'))return;
-
-  badge('wait','Recalculando...');
-  const allTasks=Object.entries(tasks).map(([k,v])=>({...v,id:k}));
-  const pool=allTasks.filter(t=>t.sprint===id||t.movedFromSprint===id);
-  // "En revisión" SIEMPRE cuenta como completada, aunque la tarea se haya
-  // movido al siguiente sprint durante el cierre. "Completado" cuenta si la
-  // tarea sigue en este sprint (si se completó después en otro sprint, para
-  // este sprint quedó pendiente).
-  const doneTasks=pool.filter(t=>t.status==='review'||(t.status==='done'&&t.sprint===id));
-  const pendingAll=pool.filter(t=>!(t.status==='review'||(t.status==='done'&&t.sprint===id)));
-  // Bloqueadas abiertas: se listan pero NO entran al denominador
-  const blockedOpen=pendingAll.filter(t=>t.blocked);
-  const pendingTasks=pendingAll.filter(t=>!t.blocked);
-  const total=doneTasks.length+pendingTasks.length;
-
-  const byPerson={};
-  doneTasks.forEach(t=>{
-    const p=t.assignee||'Sin asignar';
-    if(!byPerson[p])byPerson[p]={done:0,titles:[]};
-    byPerson[p].done++;
-    byPerson[p].titles.push((t.title||'')+(t.status==='review'?' · En revisión':''));
-  });
-
-  const snapshot={
-    sprintId:id,
-    sprintName:meta.name,
-    sprintStart:meta.start,
-    sprintEnd:meta.end,
-    closedAt:meta.closedAt,
-    totalTasks:total,
-    tasksInSprint:doneTasks.length+pendingAll.length,
-    blockedExcluded:blockedOpen.length,
-    doneTasks:doneTasks.length,
-    pendingTasks:pendingTasks.length,
-    completionPct:total?Math.round(doneTasks.length/total*100):0,
-    byPerson,
-    doneTasksList:doneTasks.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',priority:t.priority||'',status:t.status||'',collaborators:t.collaborators||null})),
-    pendingTasksList:pendingAll.map(t=>({id:t.id,title:t.title||'',assignee:t.assignee||'',status:t.status||'',blocked:!!t.blocked,blockedReason:t.blockedReason||null,collaborators:t.collaborators||null})),
-    recalculatedAt:Date.now()
-  };
-
+  const nuevo=!prev;
+  if(!confirm((nuevo?'Guardar en historial':'Recalcular historial de')+':\n'+meta.name+'\n\nSe calcula con los estatus ACTUALES de las tareas y la regla:\n• Completadas = Completado + En revisión\n• Pendientes = movidas al cierre + sin completar\n• Bloqueadas = se listan pero NO cuentan para el %\n\n¿Continuar?'))return;
+  badge('wait',nuevo?'Guardando...':'Recalculando...');
+  const updates={};
+  updates['sprintHistory/'+id]={...buildSprintSnapshot(meta),recalculatedAt:Date.now()};
+  if(sp&&!spIsActive(sp)){
+    updates['sprints/'+id+'/closed']=true;
+    if(!sp.closedAt)updates['sprints/'+id+'/closedAt']=meta.closedAt;
+  }
   try{
-    await db.ref('sprintHistory/'+id).set(snapshot);
-    badge('ok','Historial recalculado');
+    await db.ref().update(updates);
+    badge('ok',nuevo?'Guardado en historial':'Historial recalculado');
   }catch(e){
     badge('wait','Error');
-    alert('Error al recalcular: '+e.message);
+    alert('Error: '+e.message);
   }
 }
 
@@ -3756,27 +3768,41 @@ function renderSprintLog(){
   const personSel=document.getElementById('sl-filter-person');
   if(!container)return;
 
-  const history=Object.values(sprintHistory).sort((a,b)=>b.closedAt-a.closedAt);
+  // Historial guardado + sprints terminados SIN cierre formal (calculados al vuelo)
+  const orphans=orphanSprints();
+  const virtual=orphans.map(sp=>({...buildSprintSnapshot({id:sp.id,name:sp.name,start:sp.start,end:sp.end,closedAt:sp.closedAt}),virtual:true}));
+  // Orden cronológico real por fecha de fin del sprint (no por fecha de cierre:
+  // un sprint reconstruido o recalculado tarde no debe saltar al inicio)
+  const endKey=h=>(h.sprintEnd||'')+'|'+String(h.closedAt||0).padStart(15,'0');
+  const history=[...Object.values(sprintHistory),...virtual].sort((a,b)=>endKey(b).localeCompare(endKey(a)));
 
-  // Rebuild person filter
+  // Avisos de integridad del historial
+  const stale=staleActiveSprint();
+  let alertsHTML='';
+  if(stale)alertsHTML+=`<div style="margin-bottom:12px;padding:10px 12px;background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.25);border-radius:9px;font-size:12px;color:var(--red);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px">⚠ El sprint activo <b>${esc(stale.name)}</b> terminó el ${fmtD(stale.end)} y no se ha cerrado. No aparecerá en el historial hasta cerrarlo.</span>
+      <button onclick="closeSprint('${stale.id}')" style="padding:4px 12px;background:var(--red);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">Cerrar sprint</button>
+    </div>`;
+  if(orphans.length)alertsHTML+=`<div style="margin-bottom:12px;padding:10px 12px;background:rgba(251,133,0,.08);border:1px solid rgba(251,133,0,.28);border-radius:9px;font-size:12px;color:#9a5200;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px">⚠ ${orphans.length} sprint${orphans.length!==1?'s':''} terminado${orphans.length!==1?'s':''} sin cierre formal. Se muestran calculados con los estatus <b>actuales</b> de las tareas; guárdalos para congelar sus cifras.</span>
+      <button onclick="rebuildSprintHistory()" style="padding:4px 12px;background:var(--orange);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">💾 Guardar ${orphans.length} en historial</button>
+    </div>`;
+
+  // Rebuild person filter (sin personal dado de baja)
   const allPersons=new Set();
   history.forEach(h=>{
     Object.keys(h.byPerson||{}).forEach(p=>allPersons.add(p));
     (h.pendingTasksList||[]).forEach(t=>allPersons.add(t.assignee||'Sin asignar'));
   });
-  const selPerson=personSel?personSel.value:'';
+  let selPerson=personSel?personSel.value:'';
+  if(isGone(selPerson))selPerson='';
   if(personSel){
     personSel.innerHTML='<option value="">Todas las personas</option>'+
-      [...allPersons].sort().map(p=>`<option value="${esc(p)}"${p===selPerson?' selected':''}>${esc(p)}</option>`).join('');
+      [...allPersons].filter(p=>!isGone(p)).sort().map(p=>`<option value="${esc(p)}"${p===selPerson?' selected':''}>${esc(p)}</option>`).join('');
   }
 
   if(!history.length){
-    // Detectar si hay sprints cerrados en Firebase que no tienen historial aún
-    const closedSprints=Object.values(sprints).filter(s=>s.closed===true||s.active===false&&s.closedAt);
-    const hint=closedSprints.length
-      ?'<div style="margin-top:12px"><button class="btn-sprint btn-sprint-new" style="font-size:12px;padding:7px 16px" onclick="rebuildSprintHistory()">↺ Reconstruir historial ('+closedSprints.length+' sprint'+( closedSprints.length!==1?'s':'')+' cerrado'+( closedSprints.length!==1?'s':'')+' detectado'+( closedSprints.length!==1?'s':'')+')</button></div>'
-      :'';
-    container.innerHTML='<div class="empty-state" style="margin-top:40px"><div class="empty-icon">📦</div><div>Sin historial guardado aún.</div>'+hint+'</div>';
+    container.innerHTML=alertsHTML+'<div class="empty-state" style="margin-top:40px"><div class="empty-icon">📦</div><div>Sin sprints terminados aún.</div></div>';
     return;
   }
 
@@ -3852,7 +3878,7 @@ function renderSprintLog(){
   const adjOf=h=>adjMap[h.sprintId||h.sprintName];
 
   // ── Tendencia por persona (sparkline) ──
-  const chronoHistory=[...history].sort((a,b)=>a.closedAt-b.closedAt);
+  const chronoHistory=[...history].reverse();
   const personTrend={};
   chronoHistory.forEach(h=>{
     const adj=adjOf(h);
@@ -3926,7 +3952,7 @@ function renderSprintLog(){
       globalByPerson[p].blocked=(globalByPerson[p].blocked||0)+1;
     });
   });
-  const allGlobalTeam=new Set([...config.assignees,...Object.keys(globalByPerson)]);
+  const allGlobalTeam=new Set([...config.assignees,...Object.keys(globalByPerson)].filter(p=>!isGone(p)));
 
   const personRows=[...allGlobalTeam].sort().map(p=>{
     const d=globalByPerson[p]||{done:0,review:0,pending:0,blocked:0};
@@ -3988,7 +4014,7 @@ function renderSprintLog(){
   const sprintCards=filteredHistory.map(h=>{
     const adj=adjOf(h);
     const barColor=adj.pct>=80?'var(--green)':adj.pct>=50?'var(--orange)':'var(--red)';
-    const closedFmt=h.closedAt?new Date(h.closedAt).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+    const closedFmt=h.virtual?'':h.closedAt?new Date(h.closedAt).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
 
     // ── Tabla por persona ─────────────────────────────────────────────────
     const byP=adj.byP;
@@ -4009,7 +4035,7 @@ function renderSprintLog(){
       blockedListByPerson[p].push((t.title||'')+stLb+(t.blockedReason?' — '+t.blockedReason:''));
     });
 
-    const allTeam=new Set([...config.assignees,...Object.keys(byP),...Object.keys(pendingByPerson),...Object.keys(blockedListByPerson)]);
+    const allTeam=new Set([...config.assignees,...Object.keys(byP),...Object.keys(pendingByPerson),...Object.keys(blockedListByPerson)].filter(p=>!isGone(p)));
     const teamList=selPerson?[selPerson]:[...allTeam].sort();
 
     const personRows=teamList.map(p=>{
@@ -4086,12 +4112,12 @@ function renderSprintLog(){
     const blockedExclBadge=adj.blocked
       ?`<span title="Bloqueadas: se listan pero no cuentan para el %" style="padding:2px 8px;background:rgba(231,76,60,.12);color:var(--red);border-radius:12px;font-size:10px;font-weight:700;white-space:nowrap">\u{1F6AB} ${adj.blocked} no computa${adj.blocked!==1?'n':''}</span>`:'';
 
-    return`<div class="dash-card" style="margin-bottom:14px">
+    return`<div class="dash-card" style="margin-bottom:14px${h.virtual?';border:1px dashed var(--orange)':''}">
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap">
         <div style="flex:1;min-width:140px">
           <div style="font-size:14px;font-weight:700;color:var(--navy)">${esc(h.sprintName)}</div>
           <div style="font-size:11px;color:var(--gray);margin-top:2px">${fmtD(h.sprintStart)} → ${fmtD(h.sprintEnd)}</div>
-          <div style="font-size:10px;color:var(--gray-mid);margin-top:2px">Cerrado: ${closedFmt}${h.recalculatedAt?' · ↺ recalc. '+new Date(h.recalculatedAt).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}):''}</div>
+          <div style="font-size:10px;color:var(--gray-mid);margin-top:2px">${h.virtual?'<span style="color:var(--orange);font-weight:700">⚠ Sin cierre formal · calculado con estatus actuales</span>':'Cerrado: '+closedFmt}${h.recalculatedAt?' · ↺ recalc. '+new Date(h.recalculatedAt).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}):''}</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           ${pendingBadge}
@@ -4099,7 +4125,9 @@ function renderSprintLog(){
           ${blockedDaysTag}
           <span style="padding:2px 10px;background:rgba(16,185,129,.15);color:var(--green);border-radius:12px;font-size:11px;font-weight:700">${adj.done}/${adj.total} ✓</span>
           <span style="padding:2px 10px;background:color-mix(in srgb,${barColor} 14%,transparent);color:${barColor};border-radius:12px;font-size:11px;font-weight:700">${adj.total?adj.pct+'%':'—'}</span>
-          <button onclick="recalcSprintHistory('${esc(h.sprintId)}')" title="Recalcular historial" style="padding:2px 8px;background:none;border:1px solid var(--gray-light);border-radius:8px;font-size:10px;font-weight:700;color:var(--gray);cursor:pointer">↺ Recalc.</button>
+          ${h.virtual
+            ?`<button onclick="recalcSprintHistory('${esc(h.sprintId)}')" title="Guardar en historial" style="padding:2px 8px;background:var(--orange);border:none;border-radius:8px;font-size:10px;font-weight:700;color:#fff;cursor:pointer">💾 Guardar</button>`
+            :`<button onclick="recalcSprintHistory('${esc(h.sprintId)}')" title="Recalcular historial" style="padding:2px 8px;background:none;border:1px solid var(--gray-light);border-radius:8px;font-size:10px;font-weight:700;color:var(--gray);cursor:pointer">↺ Recalc.</button>`}
         </div>
       </div>
       <div style="height:6px;background:var(--gray-light);border-radius:3px;margin-bottom:10px;overflow:hidden">
@@ -4108,7 +4136,7 @@ function renderSprintLog(){
       ${personTable}
     </div>`;
   }).join('');
-  container.innerHTML=summaryHTML+
+  container.innerHTML=alertsHTML+summaryHTML+
     `<div class="section-title" style="margin-bottom:10px">🗂 Detalle por sprint ${selPerson?`— ${esc(selPerson)}`:''}</div>`+
     (sprintCards||'<div class="empty-state"><div class="empty-icon">🔍</div>Sin resultados para este filtro</div>');
 }
@@ -4206,6 +4234,8 @@ document.getElementById('cfg-role-input').oninput=e=>{
   ain.placeholder=roleAbbr(e.target.value)||'Sigla';
 };
 document.getElementById('cfg-tag-add').onclick=addTag;
+document.getElementById('cfg-inactive-add').onclick=addInactive;
+document.getElementById('cfg-inactive-input').onkeydown=e=>{if(e.key==='Enter')addInactive();};
 document.getElementById('cfg-tag-input').onkeydown=e=>{if(e.key==='Enter')addTag();};
 document.getElementById('cfg-area-add').onclick=addArea;
 document.getElementById('cfg-area-input').onkeydown=e=>{if(e.key==='Enter')addArea();};
@@ -4220,6 +4250,8 @@ async function addAssignee(){
   const role=rin.value.trim();
   const abbr=ain.value.trim().toUpperCase();
   const existe=config.assignees.includes(v);
+  // Si estaba dado de baja, al volver a registrarlo se reactiva
+  if(isGone(v))await fbSet('config/inactive',(config.inactive||[]).filter(x=>slugKey(x)!==slugKey(v)));
   // Alta o actualización: si el nombre ya existe solo se actualiza el puesto
   if(!existe)await fbSet('config/assignees',[...config.assignees,v].sort());
   if(role)await fbSet('config/roles/'+slugKey(v),{name:v,role,abbr:abbr||roleAbbr(role)});
@@ -4239,10 +4271,31 @@ function editAssignee(i){
   document.getElementById('cfg-role-input').focus();
 }
 async function delAssignee(i){
-  const n=config.assignees[i];
-  if(!confirm('¿Eliminar este responsable?'))return;
+  const n=config.assignees[i];if(n===undefined)return;
+  if(!confirm(`Dar de baja a "${n}":\n\n• Se quita de la lista de responsables\n• Se oculta del historial de sprints, dashboard, rutinas y calendario\n• NO se borran tareas ni totales históricos\n\nPuedes reactivarlo después. ¿Continuar?`))return;
   await fbSet('config/assignees',config.assignees.filter((_,idx)=>idx!==i));
-  if(n&&roleOf(n))await fbDel('config/roles/'+slugKey(n));
+  if(!isGone(n))await fbSet('config/inactive',[...(config.inactive||[]),n].sort());
+}
+async function addInactive(){
+  const inp=document.getElementById('cfg-inactive-input');
+  const v=inp.value.trim();if(!v)return;
+  if(isGone(v)){inp.select();return;}
+  const known=allKnownNames();
+  if(!known.some(n=>slugKey(n)===slugKey(v))&&!confirm(`"${v}" no aparece en ninguna tarea ni en el historial. Revisa que el nombre sea exacto.\n\n¿Ocultarlo de todas formas?`))return;
+  const updates={};
+  updates['config/inactive']=[...(config.inactive||[]),v].sort();
+  const rest=config.assignees.filter(n=>slugKey(n)!==slugKey(v));
+  if(rest.length!==config.assignees.length)updates['config/assignees']=rest;
+  if(db)await db.ref().update(updates);
+  inp.value='';
+}
+async function reactivatePerson(i){
+  const n=(config.inactive||[])[i];if(!n)return;
+  if(!confirm(`¿Reactivar a "${n}"? Vuelve a la lista de responsables y a todas las vistas.`))return;
+  const updates={};
+  updates['config/inactive']=(config.inactive||[]).filter((_,idx)=>idx!==i);
+  if(!config.assignees.includes(n))updates['config/assignees']=[...config.assignees,n].sort();
+  if(db)await db.ref().update(updates);
 }
 async function addTag(){
   const inp=document.getElementById('cfg-tag-input');
